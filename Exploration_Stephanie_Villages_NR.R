@@ -6,6 +6,9 @@ library(deSolve)
 library(tidyverse)
 library(stats)
 library(itsadug)
+library(data.table)
+library(car)
+library(broom)
 
 setwd("~/Desktop/CivitelloRScipts")
 
@@ -325,9 +328,9 @@ Diganali2022_summary$Village = as.factor(Diganali2022_summary$Village)
 
 
 DiganaliWaterBodies = bind_rows(Diganali2019_summary,Diganali2020_summary,Diganali2021_summary,Diganali2022_summary)
-Months = data.frame(c(14,15,16,17,18,19,20,21,23,24,25,26,27,28,29,30,31,32,33,34,36,37,39,40,41,42,43,44,45,46,47,48)) #replace with months since january 2019
-colnames(Months) = "CorrectedMonths"
-DiganaliWaterBodies[9:40,1] <- Months
+#Months = data.frame(c(14,15,16,17,18,19,20,21,23,24,25,26,27,28,29,30,31,32,33,34,36,37,39,40,41,42,43,44,45,46,47,48)) #replace with months since january 2019
+#colnames(Months) = "CorrectedMonths"
+#DiganaliWaterBodies[9:40,1] <- Months
 
 #run gam for Diganali 2019-2022
 DiganaliWaterBodiesResults=gamm(round(Count)~ s(Month,k=10), #can remove k=6 when more than 6 months, want to keep k ~10
@@ -362,22 +365,49 @@ colnames(DiganaliWaterBodiesYears) = c("Month","Village", "Count", "Year")
 
 DiganaliWaterBodiesYears$Year = as.numeric(unlist(DiganaliWaterBodiesYears$Year))
 #DiganaliWaterBodiesYears["Year"] = as.numeric(DiganaliWaterBodiesYears["Year"]) #make year continuous
-DiganaliWaterBodiesResults <- gamm(round(Count) ~ te(Month, Year, k = c(6, 4), bs = c("cr", "cr")), 
-                                   family = quasipoisson(), 
-                                   correlation = corCAR1(form = ~Month | Year | Village), 
-                                   data = DiganaliWaterBodiesYears)
+
+
+#te(x, z) includes both the smooth main effects of x and z, plus their smooth interaction. ti() is just the pure smooth interaction of x and z.
+#https://stats.stackexchange.com/questions/519433/gam-and-multiple-continuous-continuous-interactions-tensor-smooths
+DiganaliWaterBodiesResults <- gamm(round(Count) ~ te(Month, Year, k = c(6, 4), bs = c("ps", "ps")), 
+                                   family = quasipoisson(), correlation = corARMA(form = ~ 1|Year, p = 1),
+                                   data = DiganaliWaterBodiesYears) #correlation = corCAR1(form = ~Month | Year | Village)
+te(Month,Year)
+
 summary(DiganaliWaterBodiesResults$gam)
 
+plot(DiganaliWaterBodiesResults$gam) #interaction plot
 
-DiganaliWaterBodiesResultsplotMonth=plot_smooth(DiganaliWaterBodiesResults$gam, view="Month",lwd=2,
-                                           transform=exp,se=1, shade=T, #ylim = c(0,50),
-                                           ylab="Water Body Count",rug=F,
-                                           hide.label=T, n.grid = 100)$fv
+plot(DiganaliWaterBodiesResults$gam, scheme = 2)
+
+datas <- rbindlist(list(DiganaliWaterBodiesYears[, .(Count, date_time)],
+                        data.table(Count = DiganaliWaterBodiesResults$fitted.values,
+                                   data_time = DiganaliWaterBodiesYears[, date_time])))
 
 
-DiganaliWaterBodiesResultsplotYear=plot_smooth(DiganaliWaterBodiesResults$gam, view="Year",lwd=2,
-                                           transform=exp,se=1, shade=T, #ylim = c(0,50),
-                                           ylab="Water Body Count",rug=F,
-                                           hide.label=T, n.grid = 100)$fv
+#https://drmowinckels.io/blog/2019/plotting-gamm-interactions-with-ggplot2/
+
+#https://campus.datacamp.com/courses/nonlinear-modeling-with-generalized-additive-models-gams-in-r/spatial-gams-and-interactions?ex=4 
+#how to interpret
+
+smooth_interact <- gamm(round(Count) ~s(Month, Year),
+                        family = quasipoisson(), correlation = corARMA(form = ~ 1|Year, p = 1),
+                        data = DiganaliWaterBodiesYears)
+
+plot(smooth_interact$gam)
+ 
+# ggplot() + geom_line(data = DiganaliWaterBodiesResultsplotMonth,aes(x=Month, y=fit)) +  #fitted line
+#   geom_ribbon(data = DiganaliWaterBodiesResultsplotMonth,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
+#   geom_point(data=DiganaliWaterBodiesYears,aes(x=Month,y=Count)) #raw data
+# 
+# 
+# DiganaliWaterBodiesResultsplotYear=plot_smooth(DiganaliWaterBodiesResults$gam, view="Year",lwd=2,
+#                                            transform=exp,se=1, shade=T, #ylim = c(0,50),
+#                                            ylab="Water Body Count",rug=F,
+#                                            hide.label=T, n.grid = 100)$fv
+# 
+# ggplot() + geom_line(data = DiganaliWaterBodiesResultsplotYear,aes(x=Year, y=fit)) +  #fitted line
+#   geom_ribbon(data = DiganaliWaterBodiesResultsplotYear,aes(x=Year, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
+#   geom_point(data=DiganaliWaterBodiesYears,aes(x=Year,y=Count)) #raw data
 
 
