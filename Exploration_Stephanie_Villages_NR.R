@@ -659,14 +659,162 @@ LC2022_summary$Village = as.factor(LC2022_summary$Village)
 
 
 
+####Loumia Centre
+#2019
+LC2019 = filter(Ponds2019numeric,Village == "Loumia Centre") 
+LC2019$`Water Body` = toupper(LC2019$`Water Body`)
+unique(LC2019$`Water Body`)
+
+LC2019_summary <- LC2019 %>%
+  group_by(Month, Village) %>%
+  summarise(Count = n()) 
+
+LC2019_summary$Village = as.factor(LC2019_summary$Village) 
+
+#last row of data does not have month info
+LC2019_summary = LC2019_summary[1:7,]
+
+#2020
+LC2020 = filter(Ponds2020numeric,Village == "Loumia Centre") 
+LC2020$`Water Body` = toupper(LC2020$"Nom de la source d'eau")
+unique(LC2020$`Water Body`)
+
+LC2020_summary <- LC2020 %>%
+  group_by(Month, Village) %>%
+  summarise(Count = n()) 
+
+LC2020_summary$Village = as.factor(LC2020_summary$Village) 
+
+#last row of data does not have month info
+LC2020_summary = LC2020_summary[1:7,] 
+
+#2021
+
+#more data cleaning, some are in village column and others in zone 
+Ponds2021 <- Ponds2021 %>% mutate(Date = as.Date(Date, format = "%m/%d/%y")) 
+
+Ponds2021$Month = months(as.Date(Ponds2021$Date))
+
+Ponds2021numeric = Ponds2021 %>%
+  mutate(Month = dplyr::recode(Month,
+                               January = 1,
+                               February = 2,
+                               March = 3,
+                               April = 4,
+                               May = 5,
+                               June = 6,
+                               July = 7,
+                               August = 8,
+                               September = 9,
+                               October = 10,
+                               November = 11,
+                               December = 12))
+
+LCZone = Ponds2021numeric %>% filter(Ponds2021$Zone == "Loumia Centre")
+LCVillage = Ponds2021numeric %>% filter(Ponds2021$Village == "Loumia Centre") 
+LC2021 = bind_rows(LCZone,LCVillage)
+
+month_names = c("Janvier", "Fevrier", "Mars", "Avril", "Mai","Juin","Juillet", "Aout","Septembre","Octobre", "Novembre", "Decembre")
+LC2021$Waterbody = ifelse(LC2021$`Nom de la source d'eau` %in% month_names, LC2021$`Niveau de surveillance`, LC2021$`Nom de la source d'eau`)
+LC2021$`Water Body` = toupper(LC2021$"Waterbody")
+unique(LC2021$`Water Body`)
+
+LC2021_summary <- LC2021 %>%
+  group_by(Month) %>%  #ignore column for village because names of villages in both zone and village column, but all Diganali
+  summarise(Count = n()) 
+
+LoumiaCentre = rep("Loumia Centre", times = 9)
+as.data.frame(LoumiaCentre)
+
+LC2021_summary = cbind(LoumiaCentre,LC2021_summary) #add a column for Diganali before combining with data from 2019 and 2020
+colnames(LC2021_summary) = c("Village","Month", "Count" )
+LC2021_summary$Village = as.factor(LC2021_summary$Village) 
+
+#swap columns for village and month so same order as other years
+
+
+##2022
+
+LC2022 = filter(Ponds2022numeric,village == "loumia centre") 
+
+LC2022_summary <- LC2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(LC2022_summary) = c("Month", "Village", "Count")
+
+LC2022_summary[LC2022_summary=="loumia centre"] <- "Loumia Centre"
+
+LC2022_summary$Village = as.factor(LC2022_summary$Village) 
+
+
+##2022 Kolemara Sara 
+
+KS2022 = filter(Ponds2022numeric,village == "kolemara sara") 
+
+KS2022_summary <- KS2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(KS2022_summary) = c("Month", "Village", "Count")
+
+KS2022_summary[KS2022_summary=="kolemara sara"] <- "Kolemara Sara"
+
+KS2022_summary$Village = as.factor(KS2022_summary$Village) 
+
+KS2022 = data.frame(c(rep("2022", times = 12)))
+
+KolemaraSara = cbind(KS2022_summary,KS2022)
+
+colnames(KolemaraSara) = c("Month","Village", "Count", "Year")
+
+
+
+##2022 Guizeme 
+
+Guimeze2022 = filter(Ponds2022numeric,village == "guimeze") 
+
+Guimeze2022_summary <- Guimeze2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Guimeze2022_summary) = c("Month", "Village", "Count")
+
+Guimeze2022_summary[Guimeze2022_summary=="guimeze"] <- "Guimeze"
+
+Guimeze2022_summary$Village = as.factor(Guimeze2022_summary$Village) 
+
+Guimeze2022year = data.frame(c(rep("2022", times = 12)))
+
+Guimeze = cbind(Guimeze2022_summary,Guimeze2022year)
+
+colnames(Guimeze) = c("Month","Village", "Count", "Year")
+
+
+##2022 Bem Bem-2
+
+bembem2022 = filter(Ponds2022numeric,village == "bem-bem 2") 
+
+bembem2022_summary <- bembem2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(bembem2022_summary) = c("Month", "Village", "Count")
+
+bembem2022_summary[bembem2022_summary=="bem-bem 2"] <- "Bem-Bem 2"
+
+bembem2022_summary$Village = as.factor(bembem2022_summary$Village) 
+
+BemBem2022Year = data.frame(c(rep("2022", times = 12)))
+
+BemBem2 = cbind(bembem2022_summary,BemBem2022Year)
+
+colnames(BemBem2) = c("Month","Village", "Count", "Year")
 
 
 
 
-
-
-
-######Asso2, Diganali, Mailao, Loumia Centre
+######Asso2, Diganali, Mailao, Loumia Centre, Guimeze, BemBem2
 Asso2 = bind_rows(Asso22019_summary,Asso22020_summary,Asso22021_summary,Asso22022_summary)
 Diganali = bind_rows(Diganali2019_summary,Diganali2020_summary,Diganali2021_summary,Diganali2022_summary)
 Mailao = bind_rows(Mailao2019_summary,Mailao2020_summary,Mailao2021_summary,Mailao2022_summary)
@@ -691,7 +839,7 @@ LoumiaCentre = cbind(LoumiaCentre,YearsLoumia)
 colnames(LoumiaCentre) = c("Month","Village", "Count", "Year")
 
 
-SelectVillages = bind_rows(Diganali,Asso2, Mailao,LoumiaCentre) #exclude Mailao? 
+SelectVillages = bind_rows(Diganali,Asso2, Mailao,LoumiaCentre, KolemaraSara,Guimeze,BemBem2) 
 
 #analyze for 2022 only
 
@@ -699,19 +847,30 @@ SelectVillages2022 = SelectVillages %>% filter(Year == 2022)
 
 SelectVillages2022$Year = as.numeric(unlist(SelectVillages2022$Year))
 
-SelectResults2022=gamm(round(Count)~ s(Month)+
-                +s(Village, bs="re"),
-              family = quasipoisson(), correlation=corCAR1(form=~Month|Village),
-              data=SelectVillages2022)
+SelectVillages2022$Village = as.factor(SelectVillages2022$Village)
 
-# summary(DiganaliWaterBodiesResults$gam) #if edf is close to k, k is too low and model is over-fitted (need more data)
-# 
-# DiganaliWaterBodiesResultsplot=plot_smooth(DiganaliWaterBodiesResults$gam, view="Month",lwd=2,
-#                                            transform=exp,se=1, shade=T, #ylim = c(0,50),
-#                                            ylab="Water Body Count",rug=F,
-#                                            hide.label=T, n.grid = 100)$fv
-# 
-# ggplot() + geom_line(data = DiganaliWaterBodiesResultsplot,aes(x=Month, y=fit)) +  #fitted line
-#   geom_ribbon(data = DiganaliWaterBodiesResultsplot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
-#   geom_point(data=DiganaliWaterBodies,aes(x=Month,y=Count)) #raw data
+SelectResults2022 = gamm(round(Count) ~ s(Month) + s(Village, bs = "re"),
+                         family = quasipoisson(), correlation = corCAR1(form = ~Month | Village),
+                         data = SelectVillages2022) 
+
+
+summary(SelectResults2022$gam) #if edf is close to k, k is too low and model is over-fitted (need more data)
+
+SelectResults2022plot=plot_smooth(SelectResults2022$gam, view="Month",lwd=2,
+                                           transform=exp,se=1, shade=T, #ylim = c(0,50),
+                                           ylab="Water Body Count",rug=F,
+                                           hide.label=T, n.grid = 100)$fv
+
+ggplot() + geom_line(data = SelectResults2022plot,aes(x=Month, y=fit)) +  #fitted line
+  geom_ribbon(data = SelectResults2022plot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
+  geom_point(data=SelectVillages2022,aes(x=Month,y=Count)) #raw data
+
+
+#other villages from Stephanie's list  
+#Toukra Mousgoum
+#KobÈ
+#Madjira 1
+#Kournari Urbain
+#Nangoto
+
 
