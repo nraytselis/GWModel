@@ -838,8 +838,75 @@ colnames(Mailao) = c("Month","Village", "Count", "Year")  #why does 2021 have so
 LoumiaCentre = cbind(LoumiaCentre,YearsLoumia)
 colnames(LoumiaCentre) = c("Month","Village", "Count", "Year")
 
+#other villages from Stephanie's list  
+#Toukra Mousgoum
+#KobÈ
+#Madjira 1
+#Kournari Urbain (control?)
+#Nangoto (control?)
 
-SelectVillages = bind_rows(Diganali,Asso2, Mailao,LoumiaCentre, KolemaraSara,Guimeze,BemBem2) 
+
+#Toukra Mousgoum
+TM2022 = filter(Ponds2022numeric,village == "toukra mousgoum") 
+
+TM2022_summary <- TM2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(TM2022_summary) = c("Month", "Village", "Count")
+
+TM2022_summary[TM2022_summary=="toukra mousgoum"] <- "Toukra Mousgoum"
+
+TM2022_summary$Village = as.factor(TM2022_summary$Village) 
+
+TM2022Year = data.frame(c(rep("2022", times = 10)))
+
+ToukraMousgoum = cbind(TM2022_summary,TM2022Year)
+
+colnames(ToukraMousgoum) = c("Month","Village", "Count", "Year")
+
+#KobÈ
+kob2022 = filter(Ponds2022numeric,village == "kob") 
+
+kob2022_summary <- kob2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(kob2022_summary) = c("Month", "Village", "Count")
+
+kob2022_summary[kob2022_summary=="kob"] <- "Kob"
+
+kob2022_summary$Village = as.factor(kob2022_summary$Village) 
+
+KobYear2022 = data.frame(c(rep("2022", times = 12)))
+
+Kob = cbind(kob2022_summary,KobYear2022)
+
+colnames(Kob) = c("Month","Village", "Count", "Year")
+
+#Madjira 1
+Madjira12022 = filter(Ponds2022numeric,village == "madjira 1") 
+
+Madjira12022_summary <- Madjira12022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Madjira12022_summary) = c("Month", "Village", "Count")
+
+Madjira12022_summary[Madjira12022_summary=="madjira 1"] <- "Madjira 1"
+
+Madjira12022_summary$Village = as.factor(Madjira12022_summary$Village) 
+
+Madjira2022Year = data.frame(c(rep("2022", times = 12)))
+
+Madjira1 = cbind(Madjira12022_summary,Madjira2022Year)
+
+colnames(Madjira1) = c("Month","Village", "Count", "Year")
+
+
+SelectVillages = bind_rows(Diganali,Asso2, Mailao,LoumiaCentre, KolemaraSara,Guimeze,BemBem2,ToukraMousgoum,Kob,Madjira1) 
+
+
 
 #analyze for 2022 only
 
@@ -857,20 +924,12 @@ SelectResults2022 = gamm(round(Count) ~ s(Month) + s(Village, bs = "re"),
 summary(SelectResults2022$gam) #if edf is close to k, k is too low and model is over-fitted (need more data)
 
 SelectResults2022plot=plot_smooth(SelectResults2022$gam, view="Month",lwd=2,
-                                           transform=exp,se=1, shade=T, #ylim = c(0,50),
-                                           ylab="Water Body Count",rug=F,
-                                           hide.label=T, n.grid = 100)$fv
+                                  transform=exp,se=1, shade=T, #ylim = c(0,50),
+                                  ylab="Water Body Count",rug=F,
+                                  hide.label=T, n.grid = 100)$fv
 
 ggplot() + geom_line(data = SelectResults2022plot,aes(x=Month, y=fit)) +  #fitted line
   geom_ribbon(data = SelectResults2022plot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
   geom_point(data=SelectVillages2022,aes(x=Month,y=Count)) #raw data
-
-
-#other villages from Stephanie's list  
-#Toukra Mousgoum
-#KobÈ
-#Madjira 1
-#Kournari Urbain
-#Nangoto
 
 
