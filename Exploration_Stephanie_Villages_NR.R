@@ -933,3 +933,74 @@ ggplot() + geom_line(data = SelectResults2022plot,aes(x=Month, y=fit)) +  #fitte
   geom_point(data=SelectVillages2022,aes(x=Month,y=Count)) #raw data
 
 
+
+####Look at data for villages for other years
+
+
+####2019
+Select2019 = filter(Ponds2019numeric, Village == "Diganali" |Village == "Asso 2" | Village == "Mailao" | Village == "Loumia Centre" | Village == "Kolemara Sara" | Village == "Guimeze" | Village == "Bem-Bem 2" | Village == "Toukra Mousgoum" | Village == "Kob" | Village == "Madjira 1") 
+
+Summary_Select2019 <- Select2019 %>%
+  group_by(Month, Village) %>%
+  summarise(Count = n())    
+
+#data from 2019 is very incomplete
+
+####
+
+
+
+####2020
+Select2020 = filter(Ponds2020numeric, Village == "Diganali" |Village == "Asso 2" | Village == "Mailao" | Village == "Loumia Centre" | Village == "Kolemara Sara" | Village == "Guimeze" | Village == "Bem-Bem 2" | Village == "Toukra Mousgoum" | Village == "Kob" | Village == "Madjira 1") 
+
+Summary_Select2020 <- Select2020 %>%
+  group_by(Month, Village) %>%
+  summarise(Count = n())  
+
+#data from 2020 is very incomplete other than for Diganali 
+
+Diganali2020 = filter(Summary_Select2020, Village == "Diganali")
+
+Diganali2020result = gamm(round(Count) ~ s(Month),
+                         family = quasipoisson(), correlation = corCAR1(form = ~Month),
+                         data = Diganali2020)  
+
+plot_smooth(Diganali2020result$gam, view="Month",lwd=2,
+            transform=exp,se=1, shade=T, #ylim = c(0,50),
+            ylab="Water Body Count",rug=F,
+            hide.label=T, n.grid = 100)$fv
+####
+
+
+####2021
+Select2021Zone = filter(Ponds2021numeric, Zone == "Diganali" |Zone == "Asso 2" | Zone == "Mailao" | Zone == "Loumia Centre" | Zone == "Kolemara Sara" | Zone == "Guimeze" | Zone == "Bem-Bem 2" | Zone == "Toukra Mousgoum" | Zone == "Kob" | Zone == "Madjira 1") 
+Select2021Zone
+Select2021Village = filter(Ponds2021numeric, Village == "Diganali" |Village == "Asso 2" | Village == "Mailao" | Village == "Loumia Centre" | Village == "Kolemara Sara" | Village == "Guimeze" | Village == "Bem-Bem 2" | Village == "Toukra Mousgoum" | Village == "Kob" | Village == "Madjira 1") 
+Select2021Village
+
+Summary_Select2021Zone <- Select2021Zone %>%
+  group_by(Month, Zone) %>%
+  summarise(Count = n())  
+
+#disregard zone, looks like there might be a zone and a village both called mailao
+
+Summary_Select2021Village <- Select2021Village %>%
+  group_by(Month, Village) %>%
+  summarise(Count = n())  
+
+#Diganali has fairly complete data for 2021
+
+Diganali2021 = filter(Summary_Select2021Village, Village == "Diganali")
+
+Diganali2021result = gamm(round(Count) ~ s(Month),
+                         family = quasipoisson(), correlation = corCAR1(form = ~Month),
+                         data = Diganali2021)  
+
+plot_smooth(Diganali2021result$gam, view="Month",lwd=2,
+            transform=exp,se=1, shade=T, #ylim = c(0,50),
+            ylab="Water Body Count",rug=F,
+            hide.label=T, n.grid = 100)$fv
+
+#why does the water body count start so high? doesn't make sense when December 2020 only had 20 water bodies.
+
+####
