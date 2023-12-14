@@ -7,9 +7,8 @@ library(tidyverse)
 library(deSolve)
 library(stats)
 
-####Parameters
 
-#Pond Infection Sub-model Parameters
+###Pond Infection Sub-model Parameters
 parms <- list()
 parms["f"] = 0.001 #feeding rate of adults
 parms["ɣ_N"] = 1/10 #feeding rate of nauplii relative to adults
@@ -37,7 +36,7 @@ parms["WL"] = 1 #water level
 parms["e"] = 0 #conversion efficiency of copepod biomass into predator biomass
 
 
-#Aquatic Model
+###Aquatic Model
 
 GW_model = function(t,y,parameters){
   L1=y[1]; N=y[2];Js=y[3];As=y[4];Je=y[5];Ae=y[6];Ji=y[7];Ai=y[8];P=y[9]
@@ -74,10 +73,10 @@ initial_conditions <- t(data.frame(
   Pond4 = c(time=0, L1 = 0, N = 900, Js = 900, As = 900, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 4),
   Pond5 = c(time=0, L1 = 0, N = 1100, Js = 1100, As = 1100, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 5),
   Pond6 = c(time=0, L1 = 0, N = 1000, Js = 1000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
-  Pond7 = c(time=0, L1 = 0, N = 1000, Js = 1000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
-  Pond8 = c(time=0, L1 = 0, N = 1000, Js = 1000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
-  Pond9 = c(time=0, L1 = 0, N = 1000, Js = 1000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
-  Pond10 = c(time=0, L1 = 0, N = 1000, Js = 1000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1)
+  Pond7 = c(time=0, L1 = 0, N = 1300, Js = 600, As = 8000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 2),
+  Pond8 = c(time=0, L1 = 0, N = 1500, Js = 5000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 4),
+  Pond9 = c(time=0, L1 = 0, N = 2000, Js = 1000, As = 9000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
+  Pond10 = c(time=0, L1 = 0, N = 500, Js = 8000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 3)
 ))
 
 
@@ -88,10 +87,10 @@ results <- cbind(initial_conditions, nonODEcolumns)
 #double forloop, runs through a list of ponds with different initial conditions and saves data for all ponds for each timestep into a dataframe in a list
 for (t in timespan) {
   time_step_data <- data.frame()# Create an empty data frame for this time step
-  last_step <- results[((t-1)*10+1):((t-1)*10+10),]
+  last_step <- subset(results, time == t-1)
   merged <- subset(last_step, Elevation <= parms$WL)
   
-  if(t==5){parms$WL=5} #change WL and t to reflect different flooding scenarios
+  if(t==5){parms$WL=5} #change WL and t to reflect different flooding scenarios, change occurs after end of 5th timestep
   if(t==7){parms$WL=1}
   
 for(p in 1:dim(merged)[1]){
@@ -109,17 +108,14 @@ for(p in 1:dim(merged)[1]){
     #Add constant columns
     pond_data[,"Pond"] <- nonODEcolumns$Pond[i]
     pond_data[,"Group"] <- nonODEcolumns$Group[i]
+    if(pond_data[,"Group"] %in% merged$Pond){
+      pond_data[,"Group"] <- 1
+    }
     pond_data[, "Volume"] <- nonODEcolumns$Volume[i]
     pond_data[, "Elevation"] <- nonODEcolumns$Elevation[i] 
     
     # Add the pond data to the time_step_data data frame
     time_step_data <- rbind(time_step_data, pond_data)
-    
-    # #average the data for this pond at this time step with other ponds that have WL >= Elevation 
-    # if(WL >= pond_data$Elevation){ #if WL >= elevation of Pond 2
-    # weighted_average <- weighted.mean(time_step_data[, 2:10],Volume)  # Calculate weighted average of columns 2:10
-    # replace(time_step_data,2:10,weighted_average)
-    # }
 
   }
   results = rbind(results,time_step_data)  
@@ -127,6 +123,124 @@ for(p in 1:dim(merged)[1]){
 results
 
 
-#tune some of the parameters
-#aim with 100-800 copepods/L
-#a few predators/L 
+
+###Human_Infection_function
+
+Human_Infection = function(human.stats, L3s, parameters){
+  # Parameters
+  epsilon_H = as.numeric(parameters["epsilon_H"])
+  sigma_H = as.numeric(parameters["sigma_H"])
+  ENV = as.numeric(parameters["ENV"])
+  m_Z = as.numeric(parameters["m_Z"])
+  step = as.numeric(parameters["step"])
+  
+  # Later calculations depend on exposure probabilities
+  exp.rates =epsilon_H*(human.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
+  sum.exp.rates = sum(exp.rates)
+  
+  # Probabilities for fate of L3s
+  P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water
+  P.infects.this.human = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
+  # Die in water or fail to infect
+  P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
+  
+  prob.vector = c(P.infects.this.human, P.left.in.water, P.dead)
+  
+  # Multinomial outcome
+  rmultinom(n=1, size=L3s, prob=prob.vector)
+}
+
+###Dog Infection Function
+Human_Infection = function(dog.stats, L3s, parameters){
+  # Parameters
+  epsilon_H = as.numeric(parameters["epsilon_H"])
+  sigma_H = as.numeric(parameters["sigma_H"])
+  ENV = as.numeric(parameters["ENV"])
+  m_Z = as.numeric(parameters["m_Z"])
+  step = as.numeric(parameters["step"])
+  
+  # Later calculations depend on exposure probabilities
+  exp.rates =epsilon_H*(dog.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
+  sum.exp.rates = sum(exp.rates)
+  
+  # Probabilities for fate of L3s
+  P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water
+  P.infects.this.dog = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
+  # Die in water or fail to infect
+  P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
+  
+  prob.vector = c(P.infects.this.dog, P.left.in.water, P.dead)
+  
+  # Multinomial outcome
+  rmultinom(n=1, size=L3s, prob=prob.vector)
+}
+
+
+###Worm Development in Agents Function - Linear Chain Rule 
+Worm_development = function(worm_state, parameters){
+  juveniles = worm_state[1:(parameters["k"] - 1)]
+  Adults = worm_state[parameters["k"]]
+  # Which juveniles 
+  juv.develop = rbinom(n = length(juveniles), size = juveniles, prob = parameters["r"])
+  new.juveniles = juveniles - juv.develop
+  new.juveniles[2:(parameters["k"] - 1)] = new.juveniles[2:(parameters["k"] - 1)] + juv.develop[1:(parameters["k"] - 2)]
+  new.Adults = Adults + juv.develop[parameters["k"] - 1]
+  return(c(new.juveniles, new.Adults))
+}
+
+parameters = c("k" = 146, "r" = 0.4)
+worms = c(100, rep(0, times=parameters["k"] - 1))
+
+day = 1
+adults = 0
+
+for(i in 1:730){
+  worms = Worm_dev(worm_state = worms, parameters)
+  adults[i] = worms[parameters["k"]]
+  worms[parameters["k"]] = 0
+  day[i] = i
+}
+
+#plot(day, adults)
+#weighted.mean(x = day, w = adults)
+
+
+ 
+parms["W_0"] = 1
+
+###Initialize ABM
+Initialize_ABM = function(N.human,N.dog){
+  
+  # Compile human statistics
+  human.stats = cbind("ID" = 1:N.human, "A" = 5,
+                      matrix(0, nrow=N.human, ncol=145, dimnames = list(c(), paste0(rep("J", times=145), 1:145))), 
+                      "Adults" = rpois(n=N.human, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.human))
+  
+  
+  # Compile dog statistics
+  dog.stats = cbind("ID" = 1:N.dog, "A" = 5,
+                      matrix(0, nrow=N.dog, ncol=145, dimnames = list(c(), paste0(rep("J", times=145), 1:145))), 
+                      "Adults" = rpois(n=N.dog, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.dog))
+  
+  # Return all starting statistics
+  list("Humans" = list(human.stats), "Dogs" = list(dog.stats))
+}
+
+#Initialize_ABM(10,10) test 
+
+###run ABM
+run_ABM = function(N.human = 5, N.dog = 10){
+  
+  #set up initial conditions
+  state = Initialize_ABM(N.human,N.dog)
+  
+  #run ABM
+  for(tick in timespan){
+    
+    #let worms develop in humans and dogs 
+    state$Humans[[tick+1]] = Worm_development(state$Humans[[tick]],parms)
+    state$Dogs[[tick+1]] = Worm_development(state$Dogs[[tick]],parms)
+  }
+}
+
+run_ABM(10,10)
