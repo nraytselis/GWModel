@@ -34,6 +34,7 @@ parms["h_j"] = 1/2 #handling time of juveniles
 parms["h"] = 1/50 #handling time of adults
 parms["WL"] = 1 #water level 
 parms["e"] = 0 #conversion efficiency of copepod biomass into predator biomass
+parms["W_0"] = 1 #number of worms 
 
 
 ###Aquatic Model
@@ -124,7 +125,7 @@ results
 
 
 
-###Human_Infection_function
+###Human_Infection_function - based off Schisto model need to modify 
 
 Human_Infection = function(human.stats, L3s, parameters){
   # Parameters
@@ -139,7 +140,7 @@ Human_Infection = function(human.stats, L3s, parameters){
   sum.exp.rates = sum(exp.rates)
   
   # Probabilities for fate of L3s
-  P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water
+  P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water - how likely in GW? should just die quickly?
   P.infects.this.human = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
   # Die in water or fail to infect
   P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
@@ -150,7 +151,7 @@ Human_Infection = function(human.stats, L3s, parameters){
   rmultinom(n=1, size=L3s, prob=prob.vector)
 }
 
-###Dog Infection Function
+###Dog Infection Function - based off Schisto model need to modify 
 Human_Infection = function(dog.stats, L3s, parameters){
   # Parameters
   epsilon_H = as.numeric(parameters["epsilon_H"])
@@ -201,24 +202,22 @@ for(i in 1:730){
   day[i] = i
 }
 
-#plot(day, adults)
-#weighted.mean(x = day, w = adults)
-
-
- 
-parms["W_0"] = 1
+plot(day, adults)
+abline(v = 335); abline(v=395) #worms take ~365 days to develop
+weighted.mean(x = day, w = adults)
+#var(day, adults) #this doesn't seem right, how do I calculate? 
 
 ###Initialize ABM
 Initialize_ABM = function(N.human,N.dog){
   
   # Compile human statistics
-  human.stats = cbind("ID" = 1:N.human, "A" = 5,
+  human.stats = cbind("ID" = 1:N.human,
                       matrix(0, nrow=N.human, ncol=145, dimnames = list(c(), paste0(rep("J", times=145), 1:145))), 
                       "Adults" = rpois(n=N.human, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.human))
   
   
   # Compile dog statistics
-  dog.stats = cbind("ID" = 1:N.dog, "A" = 5,
+  dog.stats = cbind("ID" = 1:N.dog,
                       matrix(0, nrow=N.dog, ncol=145, dimnames = list(c(), paste0(rep("J", times=145), 1:145))), 
                       "Adults" = rpois(n=N.dog, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.dog))
   
@@ -226,7 +225,7 @@ Initialize_ABM = function(N.human,N.dog){
   list("Humans" = list(human.stats), "Dogs" = list(dog.stats))
 }
 
-#Initialize_ABM(10,10) test 
+#Initialize_ABM(3,3) test 
 
 ###run ABM
 run_ABM = function(N.human = 5, N.dog = 10){
@@ -240,6 +239,25 @@ run_ABM = function(N.human = 5, N.dog = 10){
     #let worms develop in humans and dogs 
     state$Humans[[tick+1]] = Worm_development(state$Humans[[tick]],parms)
     state$Dogs[[tick+1]] = Worm_development(state$Dogs[[tick]],parms)
+    
+    #have humans and dogs make contact with water bodies and deposit worms and/or pick up new infections, this step needs to interact with ODE
+    #somehow add L1s to GW_model
+    
+    if(state$Humans == Adults){   #structure not quite right
+      #deposit L1 larvae in random pond
+      #exposed to L3 larvae in copepods if pond contains any
+    } else{
+      #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any
+    }
+    
+    if(state$Dogs == Adults){   #structure not quite right
+      #deposit L1 larvae in random pond
+      #exposed to L3 larvae in copepods if pond contains any
+    } else{
+      #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any 
+    }
+    
+    #update pond ODE
   }
 }
 
