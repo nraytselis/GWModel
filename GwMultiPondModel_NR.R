@@ -9,7 +9,7 @@ library(stats)
 
 
 ###Pond Infection Sub-model Parameters
-parms <- list()
+parms <- numeric() #parms needs to be a vector for other functions
 parms["f"] = 0.001 #feeding rate of adults
 parms["ɣ_N"] = 1/10 #feeding rate of nauplii relative to adults
 parms["ɣ_J"] = 1/2 #feeding rate of juveniles relative to adults
@@ -35,6 +35,8 @@ parms["h"] = 1/50 #handling time of adults
 parms["WL"] = 1 #water level 
 parms["e"] = 0 #conversion efficiency of copepod biomass into predator biomass
 parms["W_0"] = 1 #number of worms 
+parms["k"] = 146
+parms["r"] = 0.4
 
 
 ###Aquatic Model
@@ -125,110 +127,98 @@ results
 
 
 
-###Human_Infection_function - based off Schisto model need to modify 
-
-Human_Infection = function(human.stats, L3s, parameters){
-  # Parameters
-  epsilon_H = as.numeric(parameters["epsilon_H"])
-  sigma_H = as.numeric(parameters["sigma_H"])
-  ENV = as.numeric(parameters["ENV"])
-  m_Z = as.numeric(parameters["m_Z"])
-  step = as.numeric(parameters["step"])
-  
-  # Later calculations depend on exposure probabilities
-  exp.rates =epsilon_H*(human.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
-  sum.exp.rates = sum(exp.rates)
-  
-  # Probabilities for fate of L3s
-  P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water - how likely in GW? should just die quickly?
-  P.infects.this.human = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
-  # Die in water or fail to infect
-  P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
-  
-  prob.vector = c(P.infects.this.human, P.left.in.water, P.dead)
-  
-  # Multinomial outcome
-  rmultinom(n=1, size=L3s, prob=prob.vector)
-}
-
-###Dog Infection Function - based off Schisto model need to modify 
-Human_Infection = function(dog.stats, L3s, parameters){
-  # Parameters
-  epsilon_H = as.numeric(parameters["epsilon_H"])
-  sigma_H = as.numeric(parameters["sigma_H"])
-  ENV = as.numeric(parameters["ENV"])
-  m_Z = as.numeric(parameters["m_Z"])
-  step = as.numeric(parameters["step"])
-  
-  # Later calculations depend on exposure probabilities
-  exp.rates =epsilon_H*(dog.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
-  sum.exp.rates = sum(exp.rates)
-  
-  # Probabilities for fate of L3s
-  P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water
-  P.infects.this.dog = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
-  # Die in water or fail to infect
-  P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
-  
-  prob.vector = c(P.infects.this.dog, P.left.in.water, P.dead)
-  
-  # Multinomial outcome
-  rmultinom(n=1, size=L3s, prob=prob.vector)
-}
+# ###Human_Infection_function - based off Schisto model need to modify 
+# 
+# Human_Infection = function(human.stats, L3s, parameters){
+#   # Parameters
+#   epsilon_H = as.numeric(parameters["epsilon_H"])
+#   sigma_H = as.numeric(parameters["sigma_H"])
+#   ENV = as.numeric(parameters["ENV"])
+#   m_Z = as.numeric(parameters["m_Z"])
+#   step = as.numeric(parameters["step"])
+#   
+#   # Later calculations depend on exposure probabilities
+#   exp.rates =epsilon_H*(human.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
+#   sum.exp.rates = sum(exp.rates)
+#   
+#   # Probabilities for fate of L3s
+#   P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water - how likely in GW? should just die quickly?
+#   P.infects.this.human = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
+#   # Die in water or fail to infect
+#   P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
+#   
+#   prob.vector = c(P.infects.this.human, P.left.in.water, P.dead)
+#   
+#   # Multinomial outcome
+#   rmultinom(n=1, size=L3s, prob=prob.vector)
+# }
+# 
+# ###Dog Infection Function - based off Schisto model need to modify 
+# Human_Infection = function(dog.stats, L3s, parameters){
+#   # Parameters
+#   epsilon_H = as.numeric(parameters["epsilon_H"])
+#   sigma_H = as.numeric(parameters["sigma_H"])
+#   ENV = as.numeric(parameters["ENV"])
+#   m_Z = as.numeric(parameters["m_Z"])
+#   step = as.numeric(parameters["step"])
+#   
+#   # Later calculations depend on exposure probabilities
+#   exp.rates =epsilon_H*(dog.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
+#   sum.exp.rates = sum(exp.rates)
+#   
+#   # Probabilities for fate of L3s
+#   P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water
+#   P.infects.this.dog = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
+#   # Die in water or fail to infect
+#   P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
+#   
+#   prob.vector = c(P.infects.this.dog, P.left.in.water, P.dead)
+#   
+#   # Multinomial outcome
+#   rmultinom(n=1, size=L3s, prob=prob.vector)
+# }
 
 
 ###Worm Development in Agents Function - Linear Chain Rule 
-Worm_development = function(worm_state, parameters){
-  juveniles = worm_state[1:(parameters["k"] - 1)]
-  Adults = worm_state[parameters["k"]]
-  # Which juveniles 
-  juv.develop = rbinom(n = length(juveniles), size = juveniles, prob = parameters["r"])
-  new.juveniles = juveniles - juv.develop
-  new.juveniles[2:(parameters["k"] - 1)] = new.juveniles[2:(parameters["k"] - 1)] + juv.develop[1:(parameters["k"] - 2)]
-  new.Adults = Adults + juv.develop[parameters["k"] - 1]
-  return(c(new.juveniles, new.Adults))
+
+Worm_development = function(Human.stats, parameters){
+  new_Human.stats = Human.stats
+  for(i in 1:dim(Human.stats)[1]){  #how many rows of humans?
+    juveniles = Human.stats[i,2:parameters["k"]]
+    Adults = Human.stats[i,(parameters["k"]+1)]
+    juv.develop = rbinom(n = length(juveniles), size = juveniles, prob = parameters["r"])
+    new.juveniles = juveniles - juv.develop
+    new.juveniles[2:(parameters["k"] - 1)] = new.juveniles[2:(parameters["k"]- 1)] + juv.develop[1:(parameters["k"]- 2)]
+    new.Adults = Adults + juv.develop[parameters["k"]- 1]
+    new_Human.stats[i, 2:(parameters["k"]+1)] = c(new.juveniles, new.Adults)
+  }
+  new_Human.stats[,"t"] = new_Human.stats[,"t"] +1
+  new_Human.stats
 }
 
-parameters = c("k" = 146, "r" = 0.4)
-worms = c(100, rep(0, times=parameters["k"] - 1))
-
-day = 1
-adults = 0
-
-for(i in 1:730){
-  worms = Worm_dev(worm_state = worms, parameters)
-  adults[i] = worms[parameters["k"]]
-  worms[parameters["k"]] = 0
-  day[i] = i
-}
-
-plot(day, adults)
-abline(v = 335); abline(v=395) #worms take ~365 days to develop
-weighted.mean(x = day, w = adults)
-#var(day, adults) #this doesn't seem right, how do I calculate? 
 
 ###Initialize ABM
-Initialize_ABM = function(N.human,N.dog){
+Initialize_ABM = function(N.human,N.dog,parameters=parms){
   
   # Compile human statistics
   human.stats = cbind("ID" = 1:N.human,
-                      matrix(0, nrow=N.human, ncol=145, dimnames = list(c(), paste0(rep("J", times=145), 1:145))), 
+                      matrix(0, nrow=N.human, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
                       "Adults" = rpois(n=N.human, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.human))
   
   
   # Compile dog statistics
   dog.stats = cbind("ID" = 1:N.dog,
-                      matrix(0, nrow=N.dog, ncol=145, dimnames = list(c(), paste0(rep("J", times=145), 1:145))), 
+                      matrix(0, nrow=N.dog, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
                       "Adults" = rpois(n=N.dog, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.dog))
   
   # Return all starting statistics
   list("Humans" = list(human.stats), "Dogs" = list(dog.stats))
 }
 
-#Initialize_ABM(3,3) test 
+Initialize_ABM(3,3)
 
 ###run ABM
-run_ABM = function(N.human = 5, N.dog = 10){
+run_ABM = function(N.human = 5, N.dog = 10, parameters = parms){
   
   #set up initial conditions
   state = Initialize_ABM(N.human,N.dog)
@@ -240,25 +230,31 @@ run_ABM = function(N.human = 5, N.dog = 10){
     state$Humans[[tick+1]] = Worm_development(state$Humans[[tick]],parms)
     state$Dogs[[tick+1]] = Worm_development(state$Dogs[[tick]],parms)
     
-    #have humans and dogs make contact with water bodies and deposit worms and/or pick up new infections, this step needs to interact with ODE
-    #somehow add L1s to GW_model
-    
-    if(state$Humans == Adults){   #structure not quite right
-      #deposit L1 larvae in random pond
-      #exposed to L3 larvae in copepods if pond contains any
-    } else{
-      #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any
-    }
-    
-    if(state$Dogs == Adults){   #structure not quite right
-      #deposit L1 larvae in random pond
-      #exposed to L3 larvae in copepods if pond contains any
-    } else{
-      #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any 
-    }
-    
-    #update pond ODE
+  #   #have humans and dogs make contact with water bodies and deposit worms and/or pick up new infections, this step needs to interact with ODE
+  #   #somehow add L1s to GW_model
+  #   
+  #   if(state$Humans == Adults){   #structure not quite right
+  #     #deposit L1 larvae in random pond
+  #     #exposed to L3 larvae in copepods if pond contains any
+  #   } else{
+  #     #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any
+  #   }
+  #   
+  #   if(state$Dogs == Adults){   #structure not quite right
+  #     #deposit L1 larvae in random pond
+  #     #exposed to L3 larvae in copepods if pond contains any
+  #   } else{
+  #     #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any 
+  #   }
+  #   
+  #   #update pond ODE
   }
+  state
 }
 
-run_ABM(10,10)
+run_ABM(10,10)$Dogs[[10]]
+
+Worm_development(Initialize_ABM(3,3)$Humans[[1]],parms) #runs the model for 1 day
+
+Initialize_ABM(3,3)$Humans[[1]]
+
