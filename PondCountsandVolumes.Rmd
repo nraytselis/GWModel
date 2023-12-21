@@ -1,0 +1,137 @@
+---
+title: "Pond Volume and Counts"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+```
+
+How much abatement did water bodies receive? How does this correlative with water body volume? 
+```{r}
+Ponds2022 <- read_csv("chad_abate_2022_10-27-23.csv",locale=locale(encoding="latin1"))
+
+range(Ponds2022$volume) #three ponds listed with no size or volume
+
+abatequantityNoZeros2022 = Ponds2022$abatequantity[Ponds2022$abatequantity>0] 
+
+abatevolumeNoZeros2022 = Ponds2022$volume[Ponds2022$abatequantity>0] 
+
+range(abatequantityNoZeros2022/abatevolumeNoZeros2022) 
+
+hist(abatequantityNoZeros2022/abatevolumeNoZeros2022)
+
+sort(abatequantityNoZeros2022/abatevolumeNoZeros2022, decreasing = TRUE)[1:100] #one water body with ratio of 2005
+
+abatevolumeNoZeros2022[abatequantityNoZeros2022/abatevolumeNoZeros2022>500] #very different than others, potentially typo, should remove from analysis. Wide shallow waterbopdy that received a lot of abate.
+
+hist(abatequantityNoZeros2022[(abatequantityNoZeros2022/abatevolumeNoZeros2022)<50]/abatevolumeNoZeros2022[(abatequantityNoZeros2022/abatevolumeNoZeros2022)<50]) 
+```
+Finding:Most received relatively small abatement per unit, one outlier water body that should be excluded 
+
+How do water body counts change for all villages (n=700) from 2022 over the course of the year? 
+```{r}
+Ponds2022 <- Ponds2022 %>% mutate(Date = as.Date(treatmentdate, format = "%m/%d/%y")) 
+
+Ponds2022$Month = months(as.Date(Ponds2022$treatmentdate))
+
+Ponds2022numeric <- Ponds2022 %>%
+  mutate(Month = as.numeric(factor(Month, levels = month.name)))
+
+Ponds2022_summary <- Ponds2022numeric %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+#unique(Ponds2022_summary$village) #700 unique villages
+
+ggplot(Ponds2022_summary, aes(x = Month, y = Count)) +                #plot with individual lines for each village
+  geom_line(aes(color = village)) + theme(legend.position="none")
+
+#Ponds2022_summary$village = as.factor(Ponds2022_summary$village)
+
+Villages2022 = gamm(round(Count) ~ s(Month) + s(village, bs = "re"),
+                         family = quasipoisson(), correlation = corCAR1(form = ~Month | village),
+                         data = Ponds2022_summary) 
+
+
+Villages2022plot =plot_smooth(Villages2022$gam, view="Month",lwd=2,
+                                  transform=exp,se=1, shade=T, #ylim = c(0,50),
+                                  ylab="Water Body Count",rug=F,
+                                  hide.label=T, n.grid = 100)$fv
+
+ggplot() + geom_line(data = SelectResults2022plot,aes(x=Month, y=fit)) +  #fitted line
+  geom_ribbon(data = SelectResults2022plot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
+  geom_point(data=SelectVillages2022,aes(x=Month,y=Count)) #raw data
+```
+Summary: The data is from the Carter Center Guinea Worm Eradication Program 2022 Abate Treatment records. The plot is divided up into three main segments: April – July (beginning of wet season, presumably more, small water bodies form), August-October (wet season continues and flood plain fills), November-March (dry season). There is anecdotal evidence that as the flood plain fills water bodies become too large and therefore "untreatable" and previously treated water bodies become unreachable for treatment, both of which may also be reflected in the decline of water bodies seen later in the wet season. I will verify if these months correspond with what is generally considered the beginning and end of the rainy season.  
+
+Questions: How does water body size change over the course of these three main segments? Is the beginning of the wet season when we see an increase in the number of water bodies characterized by more water bodies of small sizes? Is the latter part of the wet season characterized by larger water bodies?  
+
+Approach: Start with villages that are ground-truthed. Identify changes in the size of specific water bodies over time.  
+```{r}
+#Look at Bem-Bem 2 first
+
+Villages2022 <- Ponds2022 %>% group_by(watername,zone) #filter by individual villages 
+
+BemBem2 <-  filter(Test,village == "bem-bem 2") 
+
+#Bouta Sidiri (inidividual wb in Bem-Bem 2), look at changes in water body size over time
+
+BoutaSidiri = dplyr::filter(BemBem2, grepl("bouta si",watername))
+BoutaSidiri = dplyr::filter(BoutaSidiri, !grepl("bouta simpo",watername))
+
+BoutaSidiri <- BoutaSidiri %>% mutate(Date = as.Date(treatmentdate, format = "%m/%d/%y")) 
+
+BoutaSidiri$Month = months(as.Date(BoutaSidiri$treatmentdate))
+
+BoutaSidiri = BoutaSidiri %>% mutate(Month = as.numeric(factor(Month, levels = month.name)))
+
+#manually rename waternames to fix typos (find easier way to do this?)
+waternamecorrected = data.frame(c(rep("Bouta Sidiri 3", times = 2),"BoutaSidiri 1", "Bouta Sidiri 2", rep("Bouta Sidiri 3", times = 2), "Bouta Sidiri 4", rep("Bouta Sidiri 3", times = 2), "Bouta Sidiri 1", "Bouta Sidiri 5", "Bouta Sidiri b", "Bouta Sidiri c", "Bouta Sidiri 5", "Bouta Sidiri 3c", "Bouta Sidiri 4"))
+BoutaSidiri = cbind(waternamecorrected,BoutaSidiri)
+colnames(BoutaSidiri)[1] = "waternamecorrected" 
+
+library(RColorBrewer)
+colourCount = length(unique(BoutaSidiri$waternamecorrected))
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colrs<- getPalette(colourCount)
+names(colrs) <- unique(BoutaSidiri$waternamecorrected)
+BoutaSidiri$color <- colrs[BoutaSidiri$waternamecorrected]  
+BoutaSidiri$color
+                
+ggplot() + geom_point(data=BoutaSidiri,aes(x=Month,y=volume), color = BoutaSidiri$color, size = 5) 
+```
+
+What villages may have more complete data sets? Look at others from Stephanie's ground truthed list.
+```{r}
+#Village = Kob
+kob2022 = filter(Ponds2022numeric,village == "kob") 
+MareCarriereBrique = dplyr::filter(kob2022, grepl("mare c",watername))
+MareCarriereBrique = dplyr::filter(MareCarriereBrique, !grepl("zara",watername))
+MareCarriereBrique$Month = as.factor(MareCarriereBrique$Month)
+ggplot() + geom_point(data=MareCarriereBrique,aes(x=Month,y=volume))
+
+#Skim through other villages to see if there are waterbodies with the same or similiar names each month. Try to identify those that span 12 months.
+
+#Guimeze2022 = filter(Ponds2022numeric,village == "guimeze") Don't seem to be many that fit criteria
+
+#KS2022 = filter(Ponds2022numeric,village == "kolemara sara") Don't seem to be many that fit criteria
+
+#Loumia Center
+
+LC2022 = filter(Ponds2022numeric,village == "loumia centre") 
+
+ggplot() + geom_point(data=LC2022,aes(x=Month,y=volume)) #volume peaks in ~July
+
+LC2022_summary <- LC2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+ggplot() + geom_point(data=LC2022_summary,aes(x=Month,y=Count)) #count peaks between March and June
+
+```
+Check dynamics of specific water bodies in loumia that have consistent names, start with loumia 1,2,3.
