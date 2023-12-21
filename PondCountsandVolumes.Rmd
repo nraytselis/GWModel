@@ -9,6 +9,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(ggplot2)
+library(dplyr)
+library(RColorBrewer)
 ```
 
 How much abatement did water bodies receive? How does this correlative with water body volume? 
@@ -134,4 +136,95 @@ LC2022_summary <- LC2022 %>%
 ggplot() + geom_point(data=LC2022_summary,aes(x=Month,y=Count)) #count peaks between March and June
 
 ```
+
 Check dynamics of specific water bodies in loumia that have consistent names, start with loumia 1,2,3.
+```{r}
+Loumia = dplyr::filter(LC2022, grepl("loumia",watername))
+
+#fix spelling issues 
+Loumia <- Loumia %>%
+  mutate(watername = gsub("loumia1", "loumia 1", watername, fixed = TRUE))
+
+# Replace "loumia2" with "loumia 2"
+Loumia <- Loumia %>%
+  mutate(watername = gsub("loumia2", "loumia 2", watername, fixed = TRUE))
+
+# Replace "loumia3" with "loumia 3"
+Loumia <- Loumia %>%
+  mutate(watername = gsub("loumia3", "loumia 3", watername, fixed = TRUE))
+
+#plot and color code based on name
+colourCount = length(unique(Loumia$watername))
+getPalette = colorRampPalette(brewer.pal(5, "Set1"))
+colrs<- getPalette(colourCount)
+names(colrs) <- unique(Loumia$watername)
+Loumia$color <- colrs[Loumia$watername]  
+Loumia$color
+
+#All three loumias, volume 
+ggplot() + geom_point(data=Loumia,aes(x=Month,y=volume), color = Loumia$color, size = 2) 
+
+#All three loumias, count
+LoumiaWBcounts <- Loumia %>%
+  group_by(Month) %>%
+  summarise(Count = n()) 
+
+ggplot() + geom_point(data=LoumiaWBcounts,aes(x=Month,y=Count))  
+
+#just Loumia 1
+Loumia1 <- dplyr::filter(Loumia, grepl("loumia 1",watername))
+Loumia1counts <- Loumia1 %>%
+  group_by(Month) %>%
+  summarise(Count = n()) 
+ggplot() + geom_point(data=Loumia1,aes(x=Month,y=volume)) 
+ggplot() + geom_point(data=Loumia1counts,aes(x=Month,y=Count)) 
+#same waterbody treated multiple times in the same month, point of entry treatments
+
+#just Loumia 2
+Loumia2 <- dplyr::filter(Loumia, grepl("loumia 2",watername))
+Loumia2counts <- Loumia2 %>%
+  group_by(Month) %>%
+  summarise(Count = n()) 
+ggplot() + geom_point(data=Loumia2,aes(x=Month,y=volume)) 
+ggplot() + geom_point(data=Loumia2counts,aes(x=Month,y=Count)) 
+
+#just Loumia 3
+Loumia3 <- dplyr::filter(Loumia, grepl("loumia 3",watername))
+Loumia3counts <- Loumia3 %>%
+  group_by(Month) %>%
+  summarise(Count = n()) 
+ggplot() + geom_point(data=Loumia3,aes(x=Month,y=volume)) 
+ggplot() + geom_point(data=Loumia3counts,aes(x=Month,y=Count)) #not enough data 
+```
+
+Only consider waterbodies treated "entire", otherwise volume is not accurate. All of loumias were point of entry so disregard.
+```{r}
+#Diganlai seems to have a lot of water bodies treated in their entirety, explore this.
+
+Diganali2022 = filter(Ponds2022numeric,village == "diganali") 
+
+Digangali <- dplyr::filter(Diganali2022, grepl("digangali",watername)) #notice wbs have an extra g 
+
+#fix typos
+#fix spelling issues 
+Digangali <- Digangali %>%
+  mutate(watername = gsub("digangali1", "digangali 1", watername, fixed = TRUE))
+
+Digangali <- Digangali %>%
+  mutate(watername = gsub("digangali,1", "digangali 1", watername, fixed = TRUE))
+
+Digangali <- Digangali %>%
+  mutate(watername = gsub("digangali13", "digangali 13", watername, fixed = TRUE))
+
+Digangali <- Digangali %>%
+  mutate(watername = gsub("digangali2", "digangali 2", watername, fixed = TRUE))
+
+Digangalicounts <- Digangali %>%
+  group_by(Month) %>%
+  summarise(Count = n()) 
+
+ggplot() + geom_point(data=Digangali,aes(x=Month,y=volume)) 
+ggplot() + geom_point(data=Digangalicounts,aes(x=Month,y=Count))
+
+```
+Diganali and the Digangali waterbodies are interesting because there are so many that split and merge. Also, all were treated in their entirity. Unfortunately there is no data for Feb-June, but we do see a similar pattern with counts peaking before volume in the later part of the year.Going to keep looking for other examples of water bodies that split and are treated in their entirety in the data. 
