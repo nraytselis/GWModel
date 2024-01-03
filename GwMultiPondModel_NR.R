@@ -39,8 +39,7 @@ parms["k"] = 146
 parms["r"] = 0.4
 
 
-###Aquatic Model
-
+### --------------------Aquatic Model ODE--------------------
 GW_model = function(t,y,parameters){
   L1=y[1]; N=y[2];Js=y[3];As=y[4];Je=y[5];Ae=y[6];Ji=y[7];Ai=y[8];P=y[9]
   with(as.list(parameters),{
@@ -65,122 +64,47 @@ GW_model = function(t,y,parameters){
   )
 }
 
-# Define the time points you want to iterate through
-timespan <- 1:10
-
-# Create separate initial conditions for each pond
-initial_conditions <- t(data.frame(
-  River = c(time=0, L1 = 0, N = 1000, Js = 1000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
-  Pond2 = c(time=0, L1 = 0, N = 800, Js = 800, As = 800, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 2),
-  Pond3 = c(time=0, L1 = 0, N = 1200, Js = 1200, As = 1200, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 3),
-  Pond4 = c(time=0, L1 = 0, N = 900, Js = 900, As = 900, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 4),
-  Pond5 = c(time=0, L1 = 0, N = 1100, Js = 1100, As = 1100, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 5),
-  Pond6 = c(time=0, L1 = 0, N = 1000, Js = 1000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
-  Pond7 = c(time=0, L1 = 0, N = 1300, Js = 600, As = 8000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 2),
-  Pond8 = c(time=0, L1 = 0, N = 1500, Js = 5000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 4),
-  Pond9 = c(time=0, L1 = 0, N = 2000, Js = 1000, As = 9000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 1),
-  Pond10 = c(time=0, L1 = 0, N = 500, Js = 8000, As = 1000, Je = 0, Ae = 0, Ji = 0, Ai = 0, P = 3)
-))
-
-
-# Create a separate data frame for columns not defined by ODE
-nonODEcolumns <- data.frame(Pond = 1:10, Group = 1:10, Volume = c(100, 90, 80, 70, 60, 50, 40, 30, 20,10), Elevation = 0:9)
-results <- cbind(initial_conditions, nonODEcolumns)
-
-#double forloop, runs through a list of ponds with different initial conditions and saves data for all ponds for each timestep into a dataframe in a list
-for (t in timespan) {
-  time_step_data <- data.frame()# Create an empty data frame for this time step
-  last_step <- subset(results, time == t-1)
-  merged <- subset(last_step, Elevation <= parms$WL)
-  
-  if(t==5){parms$WL=5} #change WL and t to reflect different flooding scenarios, change occurs after end of 5th timestep
-  if(t==7){parms$WL=1}
-  
-for(p in 1:dim(merged)[1]){
-  last_step[p,2:10] <- apply(X=merged[,2:10],MARGIN = 2,FUN = weighted.mean, w = merged$Volume)
+#Initial pond conditions (is there a more generalized way to do this?)
+initial_conditions = function(n.pond){
+  #Pond = paste("Pond", 1:n.pond)
+  time = rep(0, times=n.pond)
+  L1 = rep(0, times=n.pond)
+  N = rpois(n=n.pond, lambda = 500)
+  Js = rpois(n=n.pond, lambda = 300)
+  As = rpois(n=n.pond, lambda = 200)
+  Je = rep(0, times=n.pond)
+  Ae = rep(0, times=n.pond)
+  Ji = rep(0, times=n.pond)
+  Ai = rep(0, times=n.pond)
+  P = rep(1, times=n.pond)
+  Pond = 1:n.pond
+  Group = 1:n.pond
+  Volume = c(100, 90, 80, 70, 60, 50, 40, 30, 20,10)
+  Elevation = 0:(n.pond-1)
+  data.frame(time, L1, N, Js, As, Je, Ae, Ji, Ai, P,Pond,Group,Volume,Elevation)
 }
+
+###Initialize Hosts
+Initialize_Hosts = function(N.human,N.dog,parameters=parms){
   
-  for (i in 1:dim(initial_conditions)[1]) {
-    inits <- as.numeric(last_step[i,2:10])
-    names(inits) <- colnames(last_step)[2:10]
-    result <- data.frame(ode(y = inits, times = (t-1):t, parms = parms, func = GW_model, method = "lsoda", rtol=1e-4, atol=1e-6))
-    
-    # Extract the data for this pond at the current time step
-    pond_data <- result[result$time == t, ]
-   
-    #Add constant columns
-    pond_data[,"Pond"] <- nonODEcolumns$Pond[i]
-    pond_data[,"Group"] <- nonODEcolumns$Group[i]
-    if(pond_data[,"Group"] %in% merged$Pond){
-      pond_data[,"Group"] <- 1
-    }
-    pond_data[, "Volume"] <- nonODEcolumns$Volume[i]
-    pond_data[, "Elevation"] <- nonODEcolumns$Elevation[i] 
-    
-    # Add the pond data to the time_step_data data frame
-    time_step_data <- rbind(time_step_data, pond_data)
-
-  }
-  results = rbind(results,time_step_data)  
+  # Compile human statistics
+  human.stats = cbind("ID" = 1:N.human,
+                      matrix(0, nrow=N.human, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
+                      "Adults" = rpois(n=N.human, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.human))
+  
+  
+  # Compile dog statistics
+  dog.stats = cbind("ID" = 1:N.dog,
+                    matrix(0, nrow=N.dog, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
+                    "Adults" = rpois(n=N.dog, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.dog))
+  
+  # Return all starting statistics
+  list("Humans" = list(human.stats), "Dogs" = list(dog.stats))
 }
-results
 
+#Initialize_Hosts(3,3)
 
-
-# ###Human_Infection_function - based off Schisto model need to modify 
-# 
-# Human_Infection = function(human.stats, L3s, parameters){
-#   # Parameters
-#   epsilon_H = as.numeric(parameters["epsilon_H"])
-#   sigma_H = as.numeric(parameters["sigma_H"])
-#   ENV = as.numeric(parameters["ENV"])
-#   m_Z = as.numeric(parameters["m_Z"])
-#   step = as.numeric(parameters["step"])
-#   
-#   # Later calculations depend on exposure probabilities
-#   exp.rates =epsilon_H*(human.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
-#   sum.exp.rates = sum(exp.rates)
-#   
-#   # Probabilities for fate of L3s
-#   P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water - how likely in GW? should just die quickly?
-#   P.infects.this.human = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
-#   # Die in water or fail to infect
-#   P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
-#   
-#   prob.vector = c(P.infects.this.human, P.left.in.water, P.dead)
-#   
-#   # Multinomial outcome
-#   rmultinom(n=1, size=L3s, prob=prob.vector)
-# }
-# 
-# ###Dog Infection Function - based off Schisto model need to modify 
-# Human_Infection = function(dog.stats, L3s, parameters){
-#   # Parameters
-#   epsilon_H = as.numeric(parameters["epsilon_H"])
-#   sigma_H = as.numeric(parameters["sigma_H"])
-#   ENV = as.numeric(parameters["ENV"])
-#   m_Z = as.numeric(parameters["m_Z"])
-#   step = as.numeric(parameters["step"])
-#   
-#   # Later calculations depend on exposure probabilities
-#   exp.rates =epsilon_H*(dog.stats[,"A"]>0)/ENV # This gives uniform exposure rates for all humans
-#   sum.exp.rates = sum(exp.rates)
-#   
-#   # Probabilities for fate of L3s
-#   P.left.in.water = exp(-(m_Z+sum(exp.rates))*step)                             # Still in water
-#   P.infects.this.dog = (1 - P.left.in.water)*(sigma_H*exp.rates/(m_Z+sum.exp.rates))  # Infect a human
-#   # Die in water or fail to infect
-#   P.dead = (1 - P.left.in.water)*(m_Z/(m_Z+sum.exp.rates)) + sum((1 - P.left.in.water)*((1-sigma_H)*exp.rates/(m_Z+sum.exp.rates))) # die
-#   
-#   prob.vector = c(P.infects.this.dog, P.left.in.water, P.dead)
-#   
-#   # Multinomial outcome
-#   rmultinom(n=1, size=L3s, prob=prob.vector)
-# }
-
-
-###Worm Development in Agents Function - Linear Chain Rule 
-
+#Worm Development Function 
 Worm_development = function(Human.stats, parameters){
   new_Human.stats = Human.stats
   for(i in 1:dim(Human.stats)[1]){  #how many rows of humans?
@@ -196,29 +120,63 @@ Worm_development = function(Human.stats, parameters){
   new_Human.stats
 }
 
-
-###Initialize ABM
-Initialize_ABM = function(N.human,N.dog,parameters=parms){
+#Initial Landscape Conditions Function
+GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
+  initials = initial_conditions(n.pond)
+  results = initials
+  hosts = Initialize_Hosts(N.human,N.dog,parameters)
+  Humans = hosts[["Humans"]]
+  Dogs = hosts[["Dogs"]]
   
-  # Compile human statistics
-  human.stats = cbind("ID" = 1:N.human,
-                      matrix(0, nrow=N.human, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
-                      "Adults" = rpois(n=N.human, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.human))
-  
-  
-  # Compile dog statistics
-  dog.stats = cbind("ID" = 1:N.dog,
-                      matrix(0, nrow=N.dog, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
-                      "Adults" = rpois(n=N.dog, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.dog))
-  
-  # Return all starting statistics
-  list("Humans" = list(human.stats), "Dogs" = list(dog.stats))
+  if(length(WaterLevel)!=length(timespan))stop("length of timespan and water level needs to match.")
+  #double forloop, runs through a list of ponds with different initial conditions
+  for (t in timespan) {
+    time_step_data <- data.frame()# Create an empty data frame for this time step
+    last_step <- subset(results, time == t-1)
+    merged <- subset(last_step, Elevation <= parms[['WL']])
+    parms[['WL']] = WaterLevel[t]
+    
+    for(p in 1:dim(merged)[1]){
+      last_step[p,2:10] <- apply(X=merged[,2:10],MARGIN = 2,FUN = weighted.mean, w = merged$Volume)
+    }
+    
+    for (i in 1:n.pond) {
+      inits <- as.numeric(last_step[i,2:10])
+      names(inits) <- colnames(last_step)[2:10]
+      result <- data.frame(ode(y = inits, times = (t-1):t, parms = parms, func = GW_model, method = "lsoda", rtol=1e-4, atol=1e-6))
+      
+      # Extract the data for this pond at the current time step
+      pond_data <- result[result$time == t, ]
+      
+      #Add constant columns
+      pond_data[,"Pond"] <- initials$Pond[i]
+      pond_data[,"Group"] <- initials$Group[i]
+      if(pond_data[,"Group"] %in% merged$Pond){
+        pond_data[,"Group"] <- 1
+      }
+      pond_data[, "Volume"] <- initials$Volume[i]
+      pond_data[, "Elevation"] <- initials$Elevation[i] 
+      
+      # Add the pond data to the time_step_data data frame
+      time_step_data <- rbind(time_step_data, pond_data)
+      
+    }
+    #store the ODE results for the current timestep
+    results = rbind(results,time_step_data)  
+    
+   #information about humans is a function of last time step (worm development)
+  #same for dogs (worm development)
+  #infection step that can add juveniles to first stage (exposure step)
+  }
+  results
 }
 
-Initialize_ABM(3,3)
+#output for each timestep
+result = GWABM(n.pond=10,timespan=1:10,WaterLevel=1:10)
+
 
 ###run ABM
-run_ABM = function(N.human = 5, N.dog = 10, parameters = parms){
+runHosts = function(N.human = 5, N.dog = 10, parameters = parms){
   
   #set up initial conditions
   state = Initialize_ABM(N.human,N.dog)
@@ -252,9 +210,9 @@ run_ABM = function(N.human = 5, N.dog = 10, parameters = parms){
   state
 }
 
-run_ABM(10,10)$Dogs[[10]]
+runHosts(10,10)$Dogs[[10]]
 
 Worm_development(Initialize_ABM(3,3)$Humans[[1]],parms) #runs the model for 1 day
 
-Initialize_ABM(3,3)$Humans[[1]]
+Initialize_Hosts(3,3)$Humans[[1]]
 
