@@ -172,14 +172,16 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
 }
 
 #output for each timestep
-result = GWABM(n.pond=10,timespan=1:10,WaterLevel=1:10)
+result = GWABM(n.pond=10,timespan=1:10,WaterLevel=1:10,N.human=3,N.dog=3,parameters=parms)
 
 
-###run ABM
+
+
+###run Hosts
 runHosts = function(N.human = 5, N.dog = 10, parameters = parms){
   
   #set up initial conditions
-  state = Initialize_ABM(N.human,N.dog)
+  state = Initialize_Hosts(N.human,N.dog)
   
   #run ABM
   for(tick in timespan){
@@ -187,32 +189,13 @@ runHosts = function(N.human = 5, N.dog = 10, parameters = parms){
     #let worms develop in humans and dogs 
     state$Humans[[tick+1]] = Worm_development(state$Humans[[tick]],parms)
     state$Dogs[[tick+1]] = Worm_development(state$Dogs[[tick]],parms)
-    
-  #   #have humans and dogs make contact with water bodies and deposit worms and/or pick up new infections, this step needs to interact with ODE
-  #   #somehow add L1s to GW_model
-  #   
-  #   if(state$Humans == Adults){   #structure not quite right
-  #     #deposit L1 larvae in random pond
-  #     #exposed to L3 larvae in copepods if pond contains any
-  #   } else{
-  #     #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any
-  #   }
-  #   
-  #   if(state$Dogs == Adults){   #structure not quite right
-  #     #deposit L1 larvae in random pond
-  #     #exposed to L3 larvae in copepods if pond contains any
-  #   } else{
-  #     #wander around landscape and make contact with ponds at some rate, exposed to L3 larvae in copepods if pond contains any 
-  #   }
-  #   
-  #   #update pond ODE
   }
   state
 }
 
 runHosts(10,10)$Dogs[[10]]
 
-Worm_development(Initialize_ABM(3,3)$Humans[[1]],parms) #runs the model for 1 day
+Worm_development(Initialize_Hosts(3,3)$Humans[[1]],parms) #runs the model for 1 day
 
 Initialize_Hosts(3,3)$Humans[[1]]
 
