@@ -6,6 +6,8 @@ library(cowplot)
 library(tidyverse)
 library(deSolve)
 library(stats)
+library(mc2d)
+
 
 
 ###Pond Infection Sub-model Parameters
@@ -35,11 +37,12 @@ parms["h"] = 1/50 #handling time of adults
 parms["WL"] = 1 #water level 
 parms["e"] = 0 #conversion efficiency of copepod biomass into predator biomass
 parms["W_0"] = 1 #number of worms 
-parms["k"] = 146
-parms["r"] = 0.4
+parms["k"] = 146 #number of steps in worm development (based on linear chain rule)
+parms["r"] = 0.4 #rate of moving from one worm step to next
+parms["n.pond"] = 10
 
 
-### --------------------Aquatic Model ODE--------------------
+#Pond ODE function
 GW_model = function(t,y,parameters){
   L1=y[1]; N=y[2];Js=y[3];As=y[4];Je=y[5];Ae=y[6];Ji=y[7];Ai=y[8];P=y[9]
   with(as.list(parameters),{
@@ -64,7 +67,7 @@ GW_model = function(t,y,parameters){
   )
 }
 
-#Initial pond conditions (is there a more generalized way to do this?)
+#Initial pond conditions
 initial_conditions = function(n.pond){
   #Pond = paste("Pond", 1:n.pond)
   time = rep(0, times=n.pond)
@@ -79,7 +82,7 @@ initial_conditions = function(n.pond){
   P = rep(1, times=n.pond)
   Pond = 1:n.pond
   Group = 1:n.pond
-  Volume = c(100, 90, 80, 70, 60, 50, 40, 30, 20,10)
+  Volume = c(100, 90, 80, 70, 60, 50, 40, 30, 20,10) #how to generalize this more?
   Elevation = 0:(n.pond-1)
   data.frame(time, L1, N, Js, As, Je, Ae, Ji, Ai, P,Pond,Group,Volume,Elevation)
 }
@@ -90,22 +93,26 @@ Initialize_Hosts = function(N.human,N.dog,parameters=parms){
   # Compile human statistics
   human.stats = cbind("ID" = 1:N.human,
                       matrix(0, nrow=N.human, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
-                      "Adults" = rpois(n=N.human, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.human))
+                      "Adults" = rpois(n=N.human, lambda = as.numeric(parameters["W_0"])), "t" = rep(0, times=N.human))
   
   
   # Compile dog statistics
   dog.stats = cbind("ID" = 1:N.dog,
                     matrix(0, nrow=N.dog, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
-                    "Adults" = rpois(n=N.dog, lambda = as.numeric(parms["W_0"])), "t" = rep(0, times=N.dog))
+                    "Adults" = rpois(n=N.dog, lambda = as.numeric(parameters["W_0"])), "t" = rep(0, times=N.dog))
+  
+  #host preferences 
+  human.prefs = matrix(data=1/(parameters["n.pond"]),nrow=N.human,ncol=parameters["n.pond"])
+  dog.prefs = matrix(data=1/(parameters["n.pond"]),nrow=N.dog,ncol=parameters["n.pond"])
   
   # Return all starting statistics
-  list("Humans" = list(human.stats), "Dogs" = list(dog.stats))
+  list("Humans" = human.stats, "Dogs" = dog.stats, "Human.prefs" = human.prefs, "Dog.prefs" = dog.prefs)
 }
 
-#Initialize_Hosts(3,3)
+#Test that this works...Initialize_Hosts(3,3)
 
 #Worm Development Function 
-Worm_development = function(Human.stats, parameters){
+Worm_development = function(Human.stats, parameters,kill.Adults=TRUE){
   new_Human.stats = Human.stats
   for(i in 1:dim(Human.stats)[1]){  #how many rows of humans?
     juveniles = Human.stats[i,2:parameters["k"]]
@@ -113,12 +120,40 @@ Worm_development = function(Human.stats, parameters){
     juv.develop = rbinom(n = length(juveniles), size = juveniles, prob = parameters["r"])
     new.juveniles = juveniles - juv.develop
     new.juveniles[2:(parameters["k"] - 1)] = new.juveniles[2:(parameters["k"]- 1)] + juv.develop[1:(parameters["k"]- 2)]
-    new.Adults = Adults + juv.develop[parameters["k"]- 1]
+    #new.Adults = Adults + juv.develop[parameters["k"]- 1]
+    new.Adults = ifelse(kill.Adults,0,Adults) + juv.develop[parameters["k"]- 1]
     new_Human.stats[i, 2:(parameters["k"]+1)] = c(new.juveniles, new.Adults)
   }
   new_Human.stats[,"t"] = new_Human.stats[,"t"] +1
   new_Human.stats
 }
+
+#Egg Deposition
+Egg_Deposition = function(stats,n.pond,pond_probs){
+  
+  worms = stats[,"Adults"]
+    
+  #which ponds did worms go to from each person?
+  #rmultinomial(n=length(worms),size=worms,prob=pond_probs) #n = run through each individual, size = number of things needed to be sorted into ponds
+  
+  #how many worms went into each pond?
+  #colSums(rmultinomial(n=length(worms),size=worms,prob=pond_probs))  
+  
+  #how many eggs were deposited in each pond?
+  rnbinom(n=n.pond, mu = 1e6*colSums(rmultinomial(n=length(worms),size=worms,prob=pond_probs)),size=80) #the higher the size value, the less spread
+  
+}
+
+#Egg_Deposition(stats=result$Humans[[1]],n.pond=10, pond_probs=c(0.025,0.025,0.05,0.05,0.05,0.1,0.1,0.1,0.2,0.3))
+
+#Host Exposure
+Exposure = function(ponds,parameters,hosts){
+  n.hosts = dim(hosts)[1]
+  rpois(n=n.ponds,)
+}
+
+ponds=initial_conditions(10)
+
 
 #Initial Landscape Conditions Function
 GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
@@ -129,12 +164,13 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
   Dogs = hosts[["Dogs"]]
   
   if(length(WaterLevel)!=length(timespan))stop("length of timespan and water level needs to match.")
+  
   #double forloop, runs through a list of ponds with different initial conditions
   for (t in timespan) {
     time_step_data <- data.frame()# Create an empty data frame for this time step
-    last_step <- subset(results, time == t-1)
-    merged <- subset(last_step, Elevation <= parms[['WL']])
-    parms[['WL']] = WaterLevel[t]
+    last_step <- subset(results, time == t-1) #define last step of results
+    merged <- subset(last_step, Elevation <= parms[['WL']]) #define merged
+    parms[['WL']] = WaterLevel[t] #define water level at every given time step
     
     for(p in 1:dim(merged)[1]){
       last_step[p,2:10] <- apply(X=merged[,2:10],MARGIN = 2,FUN = weighted.mean, w = merged$Volume)
@@ -161,41 +197,33 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
       time_step_data <- rbind(time_step_data, pond_data)
       
     }
-    #store the ODE results for the current timestep
+    #Allow hosts to deposit worms in water bodies
+    New_L1s.H = Egg_Deposition(stats=Humans[[t]],n.pond=parms["n.pond"], pond_probs=rep(1/parms["n.pond"],times=parms["n.pond"])) #uniform probs for deposition for all ponds
+    New_L1s.D = Egg_Deposition(stats=Dogs[[t]],n.pond=parms["n.pond"], pond_probs=rep(1/parms["n.pond"],times=parms["n.pond"]))
+    New_L1s = New_L1s.H + New_L1s.D
+    time_step_data[,"L1"] = time_step_data[,"L1"] + New_L1s/time_step_data[,"Volume"]
+    
+    #store the ODE results for the current time step
     results = rbind(results,time_step_data)  
     
-   #information about humans is a function of last time step (worm development)
-  #same for dogs (worm development)
-  #infection step that can add juveniles to first stage (exposure step)
-  }
-  results
-}
-
-#output for each timestep
-result = GWABM(n.pond=10,timespan=1:10,WaterLevel=1:10,N.human=3,N.dog=3,parameters=parms)
-
-
-
-
-###run Hosts
-runHosts = function(N.human = 5, N.dog = 10, parameters = parms){
-  
-  #set up initial conditions
-  state = Initialize_Hosts(N.human,N.dog)
-  
-  #run ABM
-  for(tick in timespan){
+    #allow juvenile worms to develop from time t to time t+1 
+    Humans[[t + 1]] = Worm_development(Humans[[t]],parms)
+    Dogs[[t + 1]] = Worm_development(Dogs[[t]],parms)
     
-    #let worms develop in humans and dogs 
-    state$Humans[[tick+1]] = Worm_development(state$Humans[[tick]],parms)
-    state$Dogs[[tick+1]] = Worm_development(state$Dogs[[tick]],parms)
-  }
-  state
+    #allow host to be exposed and add more J1s
+    
+    
+    }
+  #results
+  list(Ponds=results,Humans=Humans,Dogs=Dogs)
 }
 
-runHosts(10,10)$Dogs[[10]]
 
-Worm_development(Initialize_Hosts(3,3)$Humans[[1]],parms) #runs the model for 1 day
+#output for all time steps
+result = GWABM(n.pond=10,timespan=1:10,WaterLevel=1:10,N.human=2,N.dog=3,parameters=parms)
 
-Initialize_Hosts(3,3)$Humans[[1]]
+
+
+
+
 
