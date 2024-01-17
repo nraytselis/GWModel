@@ -10,7 +10,7 @@ library(data.table)
 library(car)
 library(broom)
 
-setwd("~/Desktop/CivitelloRScipts")
+setwd("~/Desktop/Rscripts/Data")
 
 Ponds2019 <- read_csv("AbateLineList_2019_8-17-23-NR.csv",locale=locale(encoding="latin1"))
 Ponds2020 <- read_csv("Abate2020.csv",locale=locale(encoding="latin1"))
@@ -845,6 +845,27 @@ colnames(LoumiaCentre) = c("Month","Village", "Count", "Year")
 #Kournari Urbain (control?)
 #Nangoto (control?)
 
+#diganali
+
+Diganali2022 = filter(Ponds2022numeric,village == "diganali") 
+
+Diganali2022_summary <- Diganali2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Diganali2022_summary) = c("Month", "Village", "Count")
+
+Diganali2022_summary[Diganali2022_summary=="diganali"] <- "Diganali"
+
+Diganali2022_summary$Village = as.factor(Diganali2022_summary$Village) 
+
+Diganali2022Year = data.frame(c(rep("2022", times = 11)))
+
+Diganali = cbind(Diganali2022_summary,Diganali2022Year)
+
+colnames(Diganali) = c("Month","Village", "Count", "Year")
+
+
 
 #Toukra Mousgoum
 TM2022 = filter(Ponds2022numeric,village == "toukra mousgoum") 
@@ -903,10 +924,69 @@ Madjira1 = cbind(Madjira12022_summary,Madjira2022Year)
 
 colnames(Madjira1) = c("Month","Village", "Count", "Year")
 
+#Asso 2
+Asso22022 = filter(Ponds2022numeric,village == "asso 2") 
+
+Asso22022_summary <- Asso22022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Asso22022_summary) = c("Month", "Village", "Count")
+
+Asso22022_summary[Asso22022_summary=="asso 2"] <- "Asso 2"
+
+Asso22022_summary$Village = as.factor(Asso22022_summary$Village) 
+
+Asso2Year = data.frame(c(rep("2022", times = 12)))
+
+Asso2 = cbind(Asso22022_summary,Asso2Year)
+
+colnames(Asso2) = c("Month","Village", "Count", "Year")
+
+#loumia CEntre
+LC2022 = filter(Ponds2022numeric,village == "loumia centre") 
+
+LC2022_summary <- LC2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(LC2022_summary) = c("Month", "Village", "Count")
+
+LC2022_summary[LC2022_summary=="loumia centre"] <- "Loumia Centre"
+
+LC2022_summary$Village = as.factor(LC2022_summary$Village) 
+
+lC2022Year = data.frame(c(rep("2022", times = 12)))
+
+LoumiaCentre = cbind(LC2022_summary,lC2022Year)
+
+colnames(LoumiaCentre) = c("Month","Village", "Count", "Year")
+
+#Mailao
+Mailao2022 = filter(Ponds2022numeric,village == "mailao") 
+
+Mailao2022_summary <- Mailao2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Mailao2022_summary) = c("Month", "Village", "Count")
+
+Mailao2022_summary[Mailao2022_summary=="mailao"] <- "Mailao"
+
+Mailao2022_summary$Village = as.factor(Mailao2022_summary$Village) 
+
+Mailao2022Year = data.frame(c(rep("2022", times = 12)))
+
+Mailao = cbind(Mailao2022_summary,Mailao2022Year)
+
+colnames(Mailao) = c("Month","Village", "Count", "Year")
+
+
+#analyze 2022 only 
 
 SelectVillages = bind_rows(Diganali,Asso2, Mailao,LoumiaCentre, KolemaraSara,Guimeze,BemBem2,ToukraMousgoum,Kob,Madjira1) 
 
-
+SelectVillages2022 = bind_rows(Diganali2022_summary,Asso22022_summary,Mailao2022_summary,LoumiaCentre,Guimeze2022_summary,bembem2022_summary,ToukraMousgoum,kob2022_summary,Madjira12022_summary)
 
 #analyze for 2022 only
 
@@ -931,6 +1011,16 @@ SelectResults2022plot=plot_smooth(SelectResults2022$gam, view="Month",lwd=2,
 ggplot() + geom_line(data = SelectResults2022plot,aes(x=Month, y=fit)) +  #fitted line
   geom_ribbon(data = SelectResults2022plot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
   geom_point(data=SelectVillages2022,aes(x=Month,y=Count)) #raw data
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1003,4 +1093,3 @@ plot_smooth(Diganali2021result$gam, view="Month",lwd=2,
 
 #why does the water body count start so high? doesn't make sense when December 2020 only had 20 water bodies.
 
-####
