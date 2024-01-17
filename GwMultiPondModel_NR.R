@@ -36,10 +36,13 @@ parms["h_j"] = 1/2 #handling time of juveniles
 parms["h"] = 1/50 #handling time of adults
 parms["WL"] = 1 #water level 
 parms["e"] = 0 #conversion efficiency of copepod biomass into predator biomass
-parms["W_0"] = 1 #number of worms 
+parms["W_0"] = 0.05 #number of worms initially per mammal host 
 parms["k"] = 146 #number of steps in worm development (based on linear chain rule)
 parms["r"] = 0.4 #rate of moving from one worm step to next
 parms["n.pond"] = 10
+parms["L.per.day"] = 5 #liters drank per day 
+parms["sigma"] = 0.01 #probability of infection from exposure in mammals 
+parms["cop.sigma"] = 0.0001 #prob copepod gets infected given it eats GW L1 
 
 
 #Pond ODE function
@@ -54,10 +57,10 @@ GW_model = function(t,y,parameters){
     #dynamics
     dL1dt = -f*(ɣ_N*N + ɣ_J*J + A)*L1 - d_L1*L1
     dNdt = b_m*(As/2)*exp(-c*(α_N*N + α_J*J + A)) - (m_N+d_N)*N - a*a_n*N*P/T2_denom
-    dJsdt = m_N*N - (m_J+d_J)*Js - f*ɣ_J*Js*L1 - a*a_j*Js*P/T2_denom
-    dAsdt = m_J*Js - d_A*As - f*As*L1 - a*As*P/T2_denom
-    dJedt = f*ɣ_J*Js*L1 - (d_J+v_J+l)*Je - a*a_j*Je*P/T2_denom
-    dAedt = f*As*L1 - (d_A+v_A+l)*Ae - a*Ae*P/T2_denom 
+    dJsdt = m_N*N - (m_J+d_J)*Js - cop.sigma*f*ɣ_J*Js*L1 - a*a_j*Js*P/T2_denom
+    dAsdt = m_J*Js - d_A*As - cop.sigma*f*As*L1 - a*As*P/T2_denom
+    dJedt = cop.sigma*f*ɣ_J*Js*L1 - (d_J+v_J+l)*Je - a*a_j*Je*P/T2_denom
+    dAedt = cop.sigma*f*As*L1 - (d_A+v_A+l)*Ae - a*Ae*P/T2_denom 
     dJidt = l*Je - (d_J+v_J)*Ji - a*a_j*Ji*P/T2_denom
     dAidt = l*Ae - (d_A+v_A)*Ai - a*Ai*P/T2_denom 
     dPdt  = e*a*(a_n*N + a_j*J + A)*P/T2_denom #- death
@@ -109,10 +112,16 @@ Initialize_Hosts = function(N.human,N.dog,parameters=parms){
   list("Humans" = human.stats, "Dogs" = dog.stats, "Human.prefs" = human.prefs, "Dog.prefs" = dog.prefs)
 }
 
-#Test that this works...Initialize_Hosts(3,3)
+
+#Mammal Infection 
+mammal_infection = function(n.pond, sigma, inf_copes, preferences, L.per.day){
+  sum(rpois(n=n.pond, lambda = sigma*pmax(inf_copes)*L.per.day*preferences)) #for one individual, total copepods they are infected by
+}
+
+#mammal_infection(n.pond = 10,sigma=0.1,inf_copes = 1:times=10,preferences = rep(0.1,times=10), L.per.day = 5)
 
 #Worm Development Function 
-Worm_development = function(Human.stats, parameters,kill.Adults=TRUE){
+Worm_development = function(Human.stats, parameters, kill.Adults=TRUE){
   new_Human.stats = Human.stats
   for(i in 1:dim(Human.stats)[1]){  #how many rows of humans?
     juveniles = Human.stats[i,2:parameters["k"]]
@@ -152,18 +161,17 @@ Exposure = function(ponds,parameters,hosts){
   rpois(n=n.ponds,)
 }
 
-ponds=initial_conditions(10)
-
 
 #Initial Landscape Conditions Function
 GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
   initials = initial_conditions(n.pond)
   results = initials
   hosts = Initialize_Hosts(N.human,N.dog,parameters)
-  Humans = hosts[["Humans"]]
-  Dogs = hosts[["Dogs"]]
+  Humans = hosts["Humans"]
+  Dogs = hosts["Dogs"]
   
-  if(length(WaterLevel)!=length(timespan))stop("length of timespan and water level needs to match.")
+
+    if(length(WaterLevel)!=length(timespan))stop("length of timespan and water level needs to match.")
   
   #double forloop, runs through a list of ponds with different initial conditions
   for (t in timespan) {
@@ -197,7 +205,8 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
       time_step_data <- rbind(time_step_data, pond_data)
       
     }
-    #Allow hosts to deposit worms in water bodies
+    
+    #Allow hosts to deposit worms in water bodies on day 1 of the model
     New_L1s.H = Egg_Deposition(stats=Humans[[t]],n.pond=parms["n.pond"], pond_probs=rep(1/parms["n.pond"],times=parms["n.pond"])) #uniform probs for deposition for all ponds
     New_L1s.D = Egg_Deposition(stats=Dogs[[t]],n.pond=parms["n.pond"], pond_probs=rep(1/parms["n.pond"],times=parms["n.pond"]))
     New_L1s = New_L1s.H + New_L1s.D
@@ -206,12 +215,13 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
     #store the ODE results for the current time step
     results = rbind(results,time_step_data)  
     
-    #allow juvenile worms to develop from time t to time t+1 
+    #allow juvenile worms to develop from time t to time t+1 in mammals
     Humans[[t + 1]] = Worm_development(Humans[[t]],parms)
     Dogs[[t + 1]] = Worm_development(Dogs[[t]],parms)
     
-    #allow host to be exposed and add more J1s
-    
+    #allow mammal hosts to be exposed and add more J1s (first of 146 steps in host)
+    Humans[[t + 1]][,"J1"] = Humans[[t + 1]][,"J1"] + apply(X=hosts$Human.prefs,MARGIN = 1,FUN = mammal_infection,n.pond=parms["n.pond"],sigma=parms["sigma"],inf_copes=pond_data[,"Ai"]+pond_data[,"Ji"],L.per.day=parms["L.per.day"]) 
+    Dogs[[t + 1]][,"J1"] = Dogs[[t + 1]][,"J1"] + apply(X=hosts$Dog.prefs,MARGIN = 1,FUN = mammal_infection,n.pond=parms["n.pond"],sigma=parms["sigma"],inf_copes=pond_data[,"Ai"]+pond_data[,"Ji"],L.per.day=parms["L.per.day"])
     
     }
   #results
@@ -220,10 +230,35 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
 
 
 #output for all time steps
-result = GWABM(n.pond=10,timespan=1:10,WaterLevel=1:10,N.human=2,N.dog=3,parameters=parms)
+result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
+
+ggplot(data=result$Ponds,aes(x=time,y=As,group=as.factor(Pond),color=as.factor(Pond)))+geom_line()
+
+forplotting = matrix(unlist(lapply(result$Humans,FUN=colMeans)),ncol=148,nrow=1001,byrow = TRUE) 
+
+plot(forplotting[,148],forplotting[,147],type="l") #cumulative adults over time 
 
 
 
 
 
+
+#pattern matching - what can I tune? 
+copepod densities 100-1000L
+
+Human prevelance - 0.1%, modify sigma or liters per day?
+Dog prev - 1%
+or try to get a prevelance for everyone between 0.1-1%
+
+copepod prevelance - 0.1% in adults, also in juveniles? look at literature 
+
+I can tune anything in parms or initial conditions
+start with one infection in humans and dogs
+c(1, rep(0,times=(N.human-1)) #first human gets infection, all others do not have infection (one initial infection)
+
+plot(adults in humans over time)
+
+set predators to zero
+
+make model stochastic on single time step basis 
 
