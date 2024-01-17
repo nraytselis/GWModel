@@ -10,6 +10,8 @@ library(data.table)
 library(car)
 library(broom)
 
+setwd("~/Desktop/Rscripts/Data")
+
 Ponds2022 <- read_csv("chad_abate_2022_10-27-23.csv",locale=locale(encoding="latin1"))
 
 Ponds2022 <- Ponds2022 %>% mutate(Date = as.Date(treatmentdate, format = "%m/%d/%y")) 
