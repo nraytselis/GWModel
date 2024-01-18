@@ -40,9 +40,9 @@ parms["W_0"] = 0.05 #number of worms initially per mammal host
 parms["k"] = 146 #number of steps in worm development (based on linear chain rule)
 parms["r"] = 0.4 #rate of moving from one worm step to next
 parms["n.pond"] = 10
-parms["L.per.day"] = 5 #liters drank per day 
-parms["sigma"] = 0.01 #probability of infection from exposure in mammals 
-parms["cop.sigma"] = 0.0001 #prob copepod gets infected given it eats GW L1 
+parms["L.per.day"] = 1 #liters drank per day 
+parms["sigma"] = 0.001 #probability of infection from exposure in mammals 
+parms["cop.sigma"] = 0.001 #prob copepod gets infected given it eats GW L1 
 
 
 #Pond ODE function
@@ -82,7 +82,7 @@ initial_conditions = function(n.pond){
   Ae = rep(0, times=n.pond)
   Ji = rep(0, times=n.pond)
   Ai = rep(0, times=n.pond)
-  P = rep(1, times=n.pond)
+  P = rep(0, times=n.pond) #no predators 
   Pond = 1:n.pond
   Group = 1:n.pond
   Volume = c(100, 90, 80, 70, 60, 50, 40, 30, 20,10) #how to generalize this more?
@@ -96,13 +96,13 @@ Initialize_Hosts = function(N.human,N.dog,parameters=parms){
   # Compile human statistics
   human.stats = cbind("ID" = 1:N.human,
                       matrix(0, nrow=N.human, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
-                      "Adults" = rpois(n=N.human, lambda = as.numeric(parameters["W_0"])), "t" = rep(0, times=N.human))
+                      "Adults" = c(1, rep(0,times=(N.human-1))), "t" = rep(0, times=N.human))  #initial infection(s) in humans, only 1
   
   
   # Compile dog statistics
   dog.stats = cbind("ID" = 1:N.dog,
                     matrix(0, nrow=N.dog, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
-                    "Adults" = rpois(n=N.dog, lambda = as.numeric(parameters["W_0"])), "t" = rep(0, times=N.dog))
+                    "Adults" = c(5, rep(0,times=(N.dog-1))), "t" = rep(0, times=N.dog)) #only 1 initial infection
   
   #host preferences 
   human.prefs = matrix(data=1/(parameters["n.pond"]),nrow=N.human,ncol=parameters["n.pond"])
@@ -232,33 +232,40 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
 #output for all time steps
 result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
 
-ggplot(data=result$Ponds,aes(x=time,y=As,group=as.factor(Pond),color=as.factor(Pond)))+geom_line()
+
+#plotting
+
+
+ggplot(data=result$Ponds,aes(x=time,y=(Ai/(As+Ae+Ai)),group=as.factor(Pond),color=as.factor(Pond)))+geom_line() #prevelance of infected adults, too high atm
 
 forplotting = matrix(unlist(lapply(result$Humans,FUN=colMeans)),ncol=148,nrow=1001,byrow = TRUE) 
 
-plot(forplotting[,148],forplotting[,147],type="l") #cumulative adults over time 
+plot(forplotting[,148],forplotting[,147],type="l") ##average worms per person over time
+
+#target should be 0.001 - 0.01, which would be 1 infection per 100-1000 people. (0.1 - 1 %)
 
 
+#Currently:
+#no predators
+#only one initial infection in dogs and humans
 
 
-
-
-#pattern matching - what can I tune? 
-copepod densities 100-1000L
-
-Human prevelance - 0.1%, modify sigma or liters per day?
-Dog prev - 1%
-or try to get a prevelance for everyone between 0.1-1%
-
-copepod prevelance - 0.1% in adults, also in juveniles? look at literature 
-
-I can tune anything in parms or initial conditions
-start with one infection in humans and dogs
-c(1, rep(0,times=(N.human-1)) #first human gets infection, all others do not have infection (one initial infection)
-
-plot(adults in humans over time)
-
-set predators to zero
-
-make model stochastic on single time step basis 
-
+# #pattern matching - what can I tune? 
+# copepod densities 100-1000L
+# 
+# Human prevelance - 0.1%, modify sigma or liters per day?
+# Dog prev - 1%
+# or try to get a prevelance for everyone between 0.1-1%
+# 
+# copepod infection prevelance - 0.1% in adults, also in juveniles? look at literature 
+# 
+# I can tune anything in parms or initial conditions
+# start with one infection in humans and dogs
+# c(1, rep(0,times=(N.human-1)) #first human gets infection, all others do not have infection (one initial infection)
+# 
+# plot(adults in humans over time)
+# 
+# set predators to zero 
+# 
+# make model stochastic on single time step basis 
+# 
