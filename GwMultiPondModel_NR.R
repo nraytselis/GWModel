@@ -7,6 +7,8 @@ library(tidyverse)
 library(deSolve)
 library(stats)
 library(mc2d)
+library(gridExtra)
+library(cowplot)
 
 
 
@@ -40,9 +42,9 @@ parms["W_0"] = 0.05 #number of worms initially per mammal host
 parms["k"] = 146 #number of steps in worm development (based on linear chain rule)
 parms["r"] = 0.4 #rate of moving from one worm step to next
 parms["n.pond"] = 10
-parms["L.per.day"] = 1 #liters drank per day 
-parms["sigma"] = 0.001 #probability of infection from exposure in mammals 
-parms["cop.sigma"] = 0.001 #prob copepod gets infected given it eats GW L1 
+parms["L.per.day"] = 0.2 #liters drank per day 
+parms["sigma"] = 0.01 #probability of infection from exposure in mammals 
+parms["cop.sigma"] = 0.01 #prob copepod gets infected given it eats GW L1 
 
 
 #Pond ODE function
@@ -102,7 +104,7 @@ Initialize_Hosts = function(N.human,N.dog,parameters=parms){
   # Compile dog statistics
   dog.stats = cbind("ID" = 1:N.dog,
                     matrix(0, nrow=N.dog, ncol=(parameters["k"]-1), dimnames = list(c(), paste0(rep("J", times=(parameters["k"]-1)), 1:(parameters["k"]-1)))), 
-                    "Adults" = c(5, rep(0,times=(N.dog-1))), "t" = rep(0, times=N.dog)) #only 1 initial infection
+                    "Adults" = c(1, rep(0,times=(N.dog-1))), "t" = rep(0, times=N.dog)) #only 1 initial infection
   
   #host preferences 
   human.prefs = matrix(data=1/(parameters["n.pond"]),nrow=N.human,ncol=parameters["n.pond"])
@@ -228,14 +230,37 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
   list(Ponds=results,Humans=Humans,Dogs=Dogs)
 }
 
+results_list <- list()
+plot_list <- list()
+n.sim = 15
+
+for(i in 1:n.sim){
+  #run simulation
+  result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
+  
+  # Store the result
+  results_list[[i]] <- result
+  
+  #Plot prev infected adults
+  plot1 <- ggplot(data=result$Ponds,aes(x=time,y=(Ai/(As+Ae+Ai)),group=as.factor(Pond),color=as.factor(Pond)))+geom_line()+theme(legend.position = "none")
+  
+  #Plot average worms per person over time 
+  forplotting = matrix(unlist(lapply(result$Humans,FUN=colMeans)),ncol=148,nrow=1001,byrow = TRUE)
+  wormsperperson = as.data.frame(cbind(forplotting[,148],forplotting[,147]))
+  plot2 <- ggplot(data=wormsperperson,aes(x=V1,y=V2))+geom_line()
+  
+  # Add the plots to the list
+  plot_list[[i]] <- plot_grid(plot1, plot2, ncol = 1)
+}
+
+plot_grid(plotlist = plot_list, ncol = 15)
+
 
 #output for all time steps
 result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
 
 
 #plotting
-
-
 ggplot(data=result$Ponds,aes(x=time,y=(Ai/(As+Ae+Ai)),group=as.factor(Pond),color=as.factor(Pond)))+geom_line() #prevelance of infected adults, too high atm
 
 forplotting = matrix(unlist(lapply(result$Humans,FUN=colMeans)),ncol=148,nrow=1001,byrow = TRUE) 
