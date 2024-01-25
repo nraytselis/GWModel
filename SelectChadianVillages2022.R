@@ -120,6 +120,8 @@ colnames(Asso2) = c("Month","Village", "Count", "Year")
 #LoumiaCenter
 LC2022 = filter(Ponds2022numeric,village == "loumia centre") 
 
+write.csv(LC2022, "~/Desktop/Rscripts/Data/LoumiaCentre2022.csv", row.names=FALSE)
+
 LC2022_summary <- LC2022 %>%
   group_by(Month, village) %>%
   summarise(Count = n()) 
@@ -169,9 +171,9 @@ KS2022_summary[KS2022_summary=="kolemara sara"] <- "Kolemara Sara"
 
 KS2022_summary$Village = as.factor(KS2022_summary$Village) 
 
-KS2022 = data.frame(c(rep("2022", times = 12)))
+KS2022dates = data.frame(c(rep("2022", times = 12)))
 
-KolemaraSara = cbind(KS2022_summary,KS2022)
+KolemaraSara = cbind(KS2022_summary,KS2022dates)
 
 colnames(KolemaraSara) = c("Month","Village", "Count", "Year")
 
@@ -241,5 +243,153 @@ SelectResults2022plot=plot_smooth(SelectResults2022$gam, view="Month",lwd=2,
 ggplot() + geom_line(data = SelectResults2022plot,aes(x=Month, y=fit)) +  #fitted line
   geom_ribbon(data = SelectResults2022plot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
   geom_point(data=SelectVillages2022,aes(x=Month,y=Count)) #raw data
+
+
+#volumes 2022 for the same villages
+#Diganali,Asso2, Mailao,LoumiaCentre, KolemaraSara,Guimeze,BemBem2,ToukraMousgoum,Kob,Madjira1
+
+BemBem2Vol <- bembem2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+DiganaliVol <- Diganali2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+Asso2Vol <- Asso22022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+MailaoVol <- Mailao2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+LCVol <- LC2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+KSVol <- KS2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+TMVol <- TM2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+KobVol <- kob2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+Madjira1Vol <- Madjira12022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+GuimezeVol <- Guimeze2022 %>%
+  group_by(Month, village) %>%
+  summarise(volume = mean(volume))
+
+SelectVillagesVol = bind_rows(BemBem2Vol,DiganaliVol, Asso2Vol,MailaoVol,LCVol,KSVol,TMVol,KobVol,Madjira1Vol,GuimezeVol) 
+
+Vol2022 = data.frame(c(rep("2022", times = 117)))
+
+SelectVillagesVol = cbind(SelectVillagesVol,Vol2022)
+
+colnames(SelectVillagesVol) = c("Month","Village", "MeanVolume", "Year")
+
+SelectVillagesVol$Year = as.numeric(unlist(SelectVillagesVol$Year))
+
+SelectVillagesVol$Village = as.factor(SelectVillagesVol$Village)
+
+#gamm for volumes 2022
+SelectResults2022Vol = gamm(log(MeanVolume) ~ s(Month) + s(Village, bs = "re"),
+                         family = gaussian(), correlation = corCAR1(form = ~Month | Village),
+                         data = SelectVillagesVol) 
+
+SelectResults2022Volplot=plot_smooth(SelectResults2022Vol$gam, view="Month",lwd=2,
+                                  transform=exp,se=1, shade=T, #ylim = c(0,50),
+                                  ylab="Mean Volume",rug=F,
+                                  hide.label=T, n.grid = 100)$fv
+
+ggplot() + geom_line(data = SelectResults2022Volplot,aes(x=Month, y=fit)) +  #fitted line
+  geom_ribbon(data = SelectResults2022Volplot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
+  geom_point(data=SelectVillagesVol,aes(x=Month,y=MeanVolume)) #raw data
+
+#gamm for counts
+SelectVillagesCounts = bind_rows(bembem2022_summary,Diganali2022_summary,Asso22022_summary,Mailao2022_summary,LC2022_summary,KS2022_summary,Guimeze2022_summary,TM2022_summary,Madjira12022_summary,kob2022_summary) 
+
+Count2022 = data.frame(c(rep("2022", times = 117)))
+
+SelectVillagesCounts = cbind(SelectVillagesCounts,Count2022)
+
+colnames(SelectVillagesCounts) = c("Month","Village", "Count", "Year")
+
+SelectVillagesCounts$Year = as.numeric(unlist(SelectVillagesCounts$Year))
+
+SelectVillagesCounts$Village = as.factor(SelectVillagesCounts$Village)
+
+SelectResults2022Counts = gamm(round(Count) ~ s(Month) + s(Village, bs = "re"),
+                            family = quasipoisson(), correlation = corCAR1(form = ~Month | Village),
+                            data = SelectVillagesCounts) 
+
+SelectResults2022Countplot=plot_smooth(SelectResults2022Counts$gam, view="Month",lwd=2,
+                                     transform=exp,se=1, shade=T, #ylim = c(0,50),
+                                     ylab="Water Body Count",rug=F,
+                                     hide.label=T, n.grid = 100)$fv
+
+ggplot() + geom_line(data = SelectResults2022Countplot,aes(x=Month, y=fit)) +  #fitted line
+  geom_ribbon(data = SelectResults2022Countplot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + #recreates plot smooth
+  geom_point(data=SelectVillagesCounts,aes(x=Month,y=Count)) #raw data
+
+
+#Make sure not double counting point of entry
+
+library(dplyr)
+
+# Assuming df is your data frame
+unique_sections_per_month <- KS2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire <- KS2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+
+write.csv(unique_sections_per_month, "~/Desktop/Rscripts/Data/KS2022sections.csv", row.names=FALSE)
+write.csv(entire, "~/Desktop/Rscripts/Data/KS2022entire.csv", row.names=FALSE)
+
+#Kolemara Sara data analyzed to determine how many entire water bodies are there for each month, not double counting water bodies treated in sections
+#these are the revised counts
+# January - 3
+# Feb - 1
+# March - 1
+# April - 2
+#May - 3
+#June - 4
+#July - 4
+#August - 5
+#Sept - 2
+#Oct - 5
+#Nov - 1
+#Dec - 1
+
+revisedcounts = c(3,1,1,2,3,4,4,5,2,5,1,1)
+RevisedSummaryKS = cbind(KS2022_summary,revisedcounts)
+colnames(RevisedSummaryKS) = c("Month","Village", "Count", "RevisedCount")
+
+RevisedSummaryKS$Village = as.factor(RevisedSummaryKS$Village)
+
+library(ggplot2)
+ggplot(data = RevisedSummaryKS, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+ggplot(data = KS2022_summary , aes(x = Month, y = Count)) +
+  geom_point() + geom_line()
+
+
+RevisedSummaryKSResult = gamm(round(RevisedCount) ~ s(Month) + s(Village, bs = "re"),
+                               family = quasipoisson(), correlation = corCAR1(form = ~Month | Village),
+                               data = RevisedSummaryKS) 
 
 
