@@ -1,0 +1,567 @@
+---
+title: "Select Chadian Villages"
+output: html_document
+date: "2024-01-26"
+---
+
+
+```{r}
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(mgcv)
+library(deSolve)
+library(tidyverse)
+library(stats)
+library(itsadug)
+library(data.table)
+library(car)
+library(broom)
+```
+
+```{r}
+setwd("~/Desktop/Rscripts/Data")
+Ponds2022 <- read_csv("chad_abate_2022_10-27-23.csv",locale=locale(encoding="latin1"))
+
+Ponds2022 <- Ponds2022 %>% mutate(Date = as.Date(treatmentdate, format = "%m/%d/%y")) 
+
+Ponds2022$Month = months(as.Date(Ponds2022$treatmentdate))
+
+Ponds2022numeric <- Ponds2022 %>%
+  mutate(Month = as.numeric(factor(Month, levels = month.name)))
+```
+
+Summarised Villages 
+```{r}
+#Toukra Mousgoum
+TM2022 = filter(Ponds2022numeric,village == "toukra mousgoum") 
+
+TM2022_summary <- TM2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(TM2022_summary) = c("Month", "Village", "Count")
+
+TM2022_summary[TM2022_summary=="toukra mousgoum"] <- "Toukra Mousgoum"
+
+TM2022_summary$Village = as.factor(TM2022_summary$Village) 
+
+TM2022Year = data.frame(c(rep("2022", times = 10)))
+
+ToukraMousgoum = cbind(TM2022_summary,TM2022Year)
+
+colnames(ToukraMousgoum) = c("Month","Village", "Count", "Year")
+
+#KobÈ
+kob2022 = filter(Ponds2022numeric,village == "kob") 
+
+kob2022_summary <- kob2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(kob2022_summary) = c("Month", "Village", "Count")
+
+kob2022_summary[kob2022_summary=="kob"] <- "Kob"
+
+kob2022_summary$Village = as.factor(kob2022_summary$Village) 
+
+KobYear2022 = data.frame(c(rep("2022", times = 12)))
+
+Kob = cbind(kob2022_summary,KobYear2022)
+
+colnames(Kob) = c("Month","Village", "Count", "Year")
+
+#Madjira 1
+Madjira12022 = filter(Ponds2022numeric,village == "madjira 1") 
+
+Madjira12022_summary <- Madjira12022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Madjira12022_summary) = c("Month", "Village", "Count")
+
+Madjira12022_summary[Madjira12022_summary=="madjira 1"] <- "Madjira 1"
+
+Madjira12022_summary$Village = as.factor(Madjira12022_summary$Village) 
+
+Madjira2022Year = data.frame(c(rep("2022", times = 12)))
+
+Madjira1 = cbind(Madjira12022_summary,Madjira2022Year)
+
+colnames(Madjira1) = c("Month","Village", "Count", "Year")
+
+#Diganali 
+Diganali2022 = filter(Ponds2022numeric,village == "diganali") 
+
+Diganali2022_summary <- Diganali2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Diganali2022_summary) = c("Month", "Village", "Count")
+
+Diganali2022_summary[Diganali2022_summary=="diganali"] <- "Diganali"
+
+Diganali2022_summary$Village = as.factor(Diganali2022_summary$Village) 
+
+DiganaliYear2022 = data.frame(c(rep("2022", times = 11)))
+
+Diganali = cbind(Diganali2022_summary,DiganaliYear2022)
+
+colnames(Diganali) = c("Month","Village", "Count", "Year")
+
+#Asso2
+Asso22022 = filter(Ponds2022numeric,village == "asso 2") 
+
+Asso22022_summary <- Asso22022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Asso22022_summary) = c("Month", "Village", "Count")
+
+Asso22022_summary[Asso22022_summary=="asso 2"] <- "Asso 2"
+
+Asso22022_summary$Village = as.factor(Asso22022_summary$Village) 
+
+Asso2Year2022 = data.frame(c(rep("2022", times = 12)))
+
+Asso2 = cbind(Asso22022_summary,Asso2Year2022)
+
+colnames(Asso2) = c("Month","Village", "Count", "Year")
+
+#LoumiaCenter
+LC2022 = filter(Ponds2022numeric,village == "loumia centre") 
+
+write.csv(LC2022, "~/Desktop/Rscripts/Data/LoumiaCentre2022.csv", row.names=FALSE)
+
+LC2022_summary <- LC2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(LC2022_summary) = c("Month", "Village", "Count")
+
+LC2022_summary[LC2022_summary=="loumia centre"] <- "Loumia Centre"
+
+LC2022_summary$Village = as.factor(LC2022_summary$Village) 
+
+LCYear2022 = data.frame(c(rep("2022", times = 12)))
+
+LoumiaCentre = cbind(LC2022_summary,LCYear2022)
+
+colnames(LoumiaCentre) = c("Month","Village", "Count", "Year")
+
+#Mailao
+
+Mailao2022 = filter(Ponds2022numeric,village == "mailao") 
+
+Mailao2022_summary <- Mailao2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Mailao2022_summary) = c("Month", "Village", "Count")
+
+Mailao2022_summary[Mailao2022_summary=="mailao"] <- "Mailao"
+
+Mailao2022_summary$Village = as.factor(Mailao2022_summary$Village) 
+
+MailaoYear2022 = data.frame(c(rep("2022", times = 12)))
+
+Mailao = cbind(Mailao2022_summary,MailaoYear2022)
+
+colnames(Mailao) = c("Month","Village", "Count", "Year")
+
+#Kolemara Sara
+KS2022 = filter(Ponds2022numeric,village == "kolemara sara") 
+
+KS2022_summary <- KS2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(KS2022_summary) = c("Month", "Village", "Count")
+
+KS2022_summary[KS2022_summary=="kolemara sara"] <- "Kolemara Sara"
+
+KS2022_summary$Village = as.factor(KS2022_summary$Village) 
+
+KS2022dates = data.frame(c(rep("2022", times = 12)))
+
+KolemaraSara = cbind(KS2022_summary,KS2022dates)
+
+colnames(KolemaraSara) = c("Month","Village", "Count", "Year")
+
+#Guizeme 
+
+Guimeze2022 = filter(Ponds2022numeric,village == "guimeze") 
+
+Guimeze2022_summary <- Guimeze2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(Guimeze2022_summary) = c("Month", "Village", "Count")
+
+Guimeze2022_summary[Guimeze2022_summary=="guimeze"] <- "Guimeze"
+
+Guimeze2022_summary$Village = as.factor(Guimeze2022_summary$Village) 
+
+Guimeze2022year = data.frame(c(rep("2022", times = 12)))
+
+Guimeze = cbind(Guimeze2022_summary,Guimeze2022year)
+
+colnames(Guimeze) = c("Month","Village", "Count", "Year")
+
+#Bem Bem-2
+
+bembem2022 = filter(Ponds2022numeric,village == "bem-bem 2") 
+
+bembem2022_summary <- bembem2022 %>%
+  group_by(Month, village) %>%
+  summarise(Count = n()) 
+
+colnames(bembem2022_summary) = c("Month", "Village", "Count")
+
+bembem2022_summary[bembem2022_summary=="bem-bem 2"] <- "Bem-Bem 2"
+
+bembem2022_summary$Village = as.factor(bembem2022_summary$Village) 
+
+BemBem2022Year = data.frame(c(rep("2022", times = 12)))
+
+BemBem2 = cbind(bembem2022_summary,BemBem2022Year)
+
+colnames(BemBem2) = c("Month","Village", "Count", "Year")
+
+```
+
+Cleaning data so that point of entry/sections are not double counted. 
+
+Kolemara Sara 
+```{r}
+unique_sections_per_month <- KS2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire <- KS2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+# January - 3
+# Feb - 1
+# March - 1
+# April - 2
+#May - 3
+#June - 4
+#July - 4
+#August - 5
+#Sept - 2
+#Oct - 5
+#Nov - 1
+#Dec - 1
+
+revisedcounts = c(3,1,1,2,3,4,4,5,2,5,1,1)
+RevisedSummaryKS = cbind(KS2022_summary,revisedcounts)
+colnames(RevisedSummaryKS) = c("Month","Village", "Count", "RevisedCount")
+```
+
+Loumia Centre
+```{r}
+unique_sections_per_month_LC <- LC2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_LC <- LC2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+revisedcountsLC = c(13,15,15,16,16,18,15,16,15,12,12,10)
+
+RevisedSummaryLC = cbind(LC2022_summary,revisedcountsLC)
+colnames(RevisedSummaryLC) = c("Month","Village", "Count", "RevisedCount")
+```
+
+Bem-Bem 2
+```{r}
+unique_sections_per_month_bembem2 <- bembem2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_bembem2 <- bembem2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entireWBBB2 = entire_bembem2 %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+#manually go through sections until come up with better system
+#Jan - 1
+#Feb - 1
+#March - 2
+#April - 2
+#May - 2
+#June - 3
+#July - 0
+#August - 1
+#Sept - 2
+#Oct - 1
+#Nov - 1
+#Dec - 2
+
+sectionsBB2 = data.frame(c(1,1,2,2,2,3,0,1,2,1,1,2)) 
+
+#revisedcountsbembem2 = cbind(entireWBBB2,sectionsBB2) not working cause different # of rows, do by hand atm
+
+revisedcountsbembem2 = c(5,3,6,4,5,6,8,5,4,1,1,3)
+RevisedSummaryBB2 = cbind(bembem2022_summary,revisedcountsbembem2)
+colnames(RevisedSummaryBB2) = c("Month","Village", "Count", "RevisedCount")
+```
+
+Asso 2
+```{r}
+unique_sections_per_month_Asso2 <- Asso22022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_Asso2 <- Asso22022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entireAssoo2counts = entire_Asso2 %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+#sections
+#Jan - 1
+#Feb - 1
+#March - 1
+#April - 2
+#May - 2
+#June - 2
+#July - 2
+#August - 2
+#Sept - 2
+#Oct - 2
+#Nov - 2
+#Dec - 2
+
+
+revisedcountsAsso2 = c(6,6,6,4,4,3,5,5,5,2,2,2)
+RevisedSummaryAsso2 = cbind(Asso22022_summary,revisedcountsAsso2)
+colnames(RevisedSummaryAsso2) = c("Month","Village", "Count", "RevisedCount")
+
+
+```
+
+Mailao 
+```{r}
+unique_sections_per_month_Mailao <- Mailao2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_Mailao <- Mailao2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entire_Mailaocounts = entire_Mailao %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+#sections
+#Jan - 1
+#Feb - 1
+#March - 1
+#April - 1
+#Sept - 1
+#Nov - 1
+
+revisedcountsMailao = c(8,7,7,5,17,22,18,8,13,9,3,6)
+RevisedSummaryMailao = cbind(Mailao2022_summary,revisedcountsMailao)
+colnames(RevisedSummaryMailao) = c("Month","Village", "Count", "RevisedCount")
+
+
+```
+
+Diganali
+```{r}
+unique_sections_per_month_Dig <- Diganali2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+#Diganali has no point of entry or sectioned water bodies 
+
+entire_Dig <- Diganali2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entire_Digcounts = entire_Dig %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+revisedcountsDig = c(22,38,37,32,55,20,18,14,11,9,12) #numbers aren't exactly same as before, suggests that same water bodies were treated multiple times in the same month and being double counted before. this should be better now. 
+
+RevisedSummaryDig = cbind(Diganali2022_summary,revisedcountsDig)
+colnames(RevisedSummaryDig) = c("Month","Village", "Count", "RevisedCount")
+
+```
+
+Guizeme
+```{r}
+unique_sections_per_month_Gui <- Guimeze2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_Gui <- Guimeze2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entire_Guicounts = entire_Gui %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+#there are no waterbodies treated in their entirety, only in sections or point of entry for this village
+
+#Jan - 2
+#Feb - 5
+#March - 6
+#April - 6
+#May - 4
+#June - 4
+#July - 4
+#August - 3
+#Sept - 1
+#Oct - 2
+#Nov - 2
+#Dec - 1
+
+revisedcountsGui = c(2,5,6,6,4,4,4,3,1,2,2,1)
+RevisedSummaryGui = cbind(Guimeze2022_summary,revisedcountsGui)
+colnames(RevisedSummaryGui) = c("Month","Village", "Count", "RevisedCount")
+
+#Dave agreed we should exclude this from the analysis as there are no waterbodies treated in their entirety and most are branches of the Chari 
+```
+
+Toukra Mousgam
+```{r}
+unique_sections_per_month_TM <- TM2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_TM <- TM2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entire_TMcounts = entire_TM %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+#there are no waterbodies treated in their entirety, only in sections or point of entry for this village
+
+#Jan - 1
+#Feb - 1
+#March - 1
+#April - 1
+#May - 2
+#June - 2
+#July - 1
+#August - 1
+#Sept - 1
+#Oct - 1
+
+revisedcountsTM = c(1,1,1,1,2,2,1,1,1,1)
+RevisedSummaryTM = cbind(TM2022_summary,revisedcountsTM)
+colnames(RevisedSummaryTM) = c("Month","Village", "Count", "RevisedCount")
+
+```
+
+Madjira 1
+```{r}
+unique_sections_per_month_Mad1 <- Madjira12022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_Mad1 <- Madjira12022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entire_Mad1counts = entire_Mad1 %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+#there are no waterbodies treated in their entirety, only in sections or point of entry for this village
+
+#Jan - 2
+#Feb - 3
+#March - 2
+#April - 1
+#May - 1
+#June - 1
+#July - 1
+#August - 5
+#Sept - 5
+#Oct - 5
+#Nov - 3
+#Dec - 3
+
+revisedcountsMAD = c(3,5,4,3,3,3,7,6,5,5,3,3)
+RevisedSummaryMAD = cbind(Madjira12022_summary,revisedcountsMAD)
+colnames(RevisedSummaryMAD) = c("Month","Village", "Count", "RevisedCount")
+
+```
+
+Kob
+```{r}
+unique_sections_per_month_kob <- kob2022 %>%
+  group_by(Month) %>%
+  summarise(unique_sections = unique(sectionname))
+
+entire_kob <- kob2022 %>%
+  filter(treatmenttype == 'entire') %>%
+  group_by(Month) %>%
+  summarise(waternames = unique(watername))
+
+#counts for entire 
+entire_kobcounts = entire_kob %>% group_by(Month) %>%
+  summarise(UniqueWaterNames = n_distinct(waternames))
+
+#there are no waterbodies treated in their entirety, only in sections or point of entry for this village
+
+#April- 1
+#June - 1
+#Oct - 1
+#Nov - 1
+#Dec - 1
+
+revisedcountskob = c(9,8,9,8,7,13,4,3,2,3,2,2)
+RevisedSummarykob = cbind(kob2022_summary,revisedcountskob)
+colnames(RevisedSummarykob) = c("Month","Village", "Count", "RevisedCount")
+
+```
+
+
+
+Run Analysis for all villages: Asso 2, Mailao, Loumia Centre, Kolemara Sara, Bem-bem 2, Diganali, Guizeme (removed), Toukra Mousgam, Madjira 1, Kob
+```{r}
+SelectVillagesRevised = bind_rows(RevisedSummaryKS,RevisedSummaryLC,RevisedSummaryBB2,RevisedSummaryAsso2,RevisedSummaryMailao,RevisedSummaryDig,RevisedSummaryTM,RevisedSummaryMAD,RevisedSummarykob) 
+
+SelectVillagesRevised$Village = as.factor(SelectVillagesRevised$Village)
+
+SelectResults2022Revised = gamm(round(Count) ~ s(Month) + s(Village, bs = "re"),
+                         family = quasipoisson(), correlation = corCAR1(form = ~Month | Village),
+                         data = SelectVillagesRevised) 
+
+SelectResults2022Revisedplot =plot_smooth(SelectResults2022Revised$gam, view="Month",lwd=2,
+                                  transform=exp,se=1, shade=T, #ylim = c(0,50),
+                                  ylab="Water Body Count",rug=F,
+                                  hide.label=T, n.grid = 100)$fv
+
+ggplot() + geom_line(data = SelectResults2022Revisedplot,aes(x=Month, y=fit)) +  #fitted line
+  geom_ribbon(data = SelectResults2022Revisedplot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + geom_point(data=SelectVillagesRevised,aes(x=Month,y=Count)) #raw data
+
+```
+
