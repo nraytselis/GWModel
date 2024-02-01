@@ -657,4 +657,32 @@ Just look at Mailao
 -only one row if a water body if it's been treated in sections
 
 
+```{r}
+MailaoSizeSpecificTreatments <- select(Mailao2022, c('watername','treatmenttype','Month'))
+
+MailaoSizeSpecificTreatments$watername = as.factor(MailaoSizeSpecificTreatments$watername)
+
+MailaoSizeSpecificTreatments$Month = as.numeric(MailaoSizeSpecificTreatments$Month)
+
+#encode treatment type as ordered categorical
+
+MailaoSizeSpecificTreatments$treatmenttype <- ordered(MailaoSizeSpecificTreatments$treatmenttype, levels = c("entire", "point of entry"))
+
+#ocat response variable must be an integer
+
+MailaoSizeSpecificTreatments$treatmenttype <- as.integer(MailaoSizeSpecificTreatments$treatmenttype)
+
+model <- gam(treatmenttype ~ s(Month) + s(watername, bs = "re"), 
+                 data = MailaoSizeSpecificTreatments, 
+                 family = ocat(theta = 1, R=2), method = "REML") #no sections in Mailao, R=2
+
+summary(model)
+
+plot_smooth(model,view="Month",transform = exp) 
+
+```
+
+```{r}
+
+```
 
