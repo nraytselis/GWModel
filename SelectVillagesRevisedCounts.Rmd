@@ -17,6 +17,8 @@ library(itsadug)
 library(data.table)
 library(car)
 library(broom)
+library(ggplot2)
+library(cowplot)
 ```
 
 ```{r}
@@ -542,7 +544,41 @@ RevisedSummarykob = cbind(kob2022_summary,revisedcountskob)
 colnames(RevisedSummarykob) = c("Month","Village", "Count", "RevisedCount")
 
 ```
+Plot data for each Village
+```{r}
+p1 <- ggplot(data = RevisedSummaryKS, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
 
+p2 <- ggplot(data = RevisedSummaryLC, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+p3 <- ggplot(data = RevisedSummaryBB2, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+p4 <- ggplot(data = RevisedSummaryAsso2, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+p5 <- ggplot(data = RevisedSummaryMailao, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+p6 <- ggplot(data = RevisedSummaryDig, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+p7 <- ggplot(data = RevisedSummaryTM, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+p8 <- ggplot(data = RevisedSummaryMAD, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+p9 <- ggplot(data = RevisedSummarykob, aes(x = Month, y = RevisedCount)) +
+  geom_point() + geom_line()
+
+plot_grid(p1,p2,p3,p4,p5,p6,p7,p8,p9, labels = c('KS', 'LC','BB2','Asso2','Mailao','Dig','TM', 'Mad1','kob'))
+
+ggplot(data = SelectVillagesRevised, aes(x = Month, y = RevisedCount,color = Village)) +
+  geom_point() + geom_line()
+
+```
 
 
 Run Analysis for all villages: Asso 2, Mailao, Loumia Centre, Kolemara Sara, Bem-bem 2, Diganali, Guizeme (removed), Toukra Mousgam, Madjira 1, Kob
@@ -564,4 +600,61 @@ ggplot() + geom_line(data = SelectResults2022Revisedplot,aes(x=Month, y=fit)) + 
   geom_ribbon(data = SelectResults2022Revisedplot,aes(x=Month, y=fit, ymin = ll,ymax=ul),alpha=0.2) + geom_point(data=SelectVillagesRevised,aes(x=Month,y=Count)) #raw data
 
 ```
+Hierarchical GAMM
+- factor-smoother interaction or"fs"
+-m=1 for the group-level smoothers, which means the marginal TPRS basis for this term will penalize the squared first derivative of the function
+-m=2, penalize the second derivative 
+```{r}
+SelectVillagesRevised$Village = as.factor(SelectVillagesRevised$Village)
+
+
+Test1 = gam(round(Count) ~ s(Month, by=Village) + s(Village,bs="re"), 
+                         family = quasipoisson(), data = SelectVillagesRevised, method = "REML") 
+
+
+summary(Test1)
+
+plot(Test1)
+
+
+plot_smooth(Test1,view="Month",plot_all = "Village",transform = exp) 
+
+
+Test2 = gam(round(Count) ~ s(Month) + s(Month, by=Village) + s(Village,bs="re"), 
+                         family = quasipoisson(), data = SelectVillagesRevised, method = "REML") 
+
+summary(Test2)
+
+plot(Test2)
+
+plot_smooth(Test2,view="Month",plot_all = "Village",transform = exp) 
+
+plot_smooth(Test2,view="Month",transform = exp) 
+
+
+
+
+#Bayesian method to account for singularity.
+#Singularity occurs when model has too many parameters or terms, and some of them are redundant or perfectly correlated...In the context of GAMMs, singularity can occur when there is a perfect relationship between some of the smooth terms, making it impossible to estimate the unique contribution of each term. This issue often arises when using complex smoothing structures, and it can manifest as an error during the fitting process.
+
+library(brms)
+brm_model = brm(round(Count) ~ s(Month) + s(Month, by=Village) + s(Village,bs="re"),
+                family = negbinomial(), data = SelectVillagesRevised, chains = 4, iter = 2000, warmup = 1000, control = list(max_treedepth = 20))
+
+conditional_effects_plot <- conditional_effects(brm_model)
+plot(conditional_effects_plot, points = TRUE, ask = FALSE)
+
+#result: The largest R-hat is 1.93, indicating chains have not mixed.
+
+brm_model_more_iterations <- update(brm_model, iter = 4000) 
+
+
+```
+
+
+Just look at Mailao
+-for every waterbody, I want the name and treatment status for that month
+-only one row if a water body if it's been treated in sections
+
+
 
