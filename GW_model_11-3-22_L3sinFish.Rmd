@@ -1,0 +1,275 @@
+--- 
+title: "Guinea Worm 6-22-22" 
+author: "Nadia Raytselis" 
+date: "6/22/2022" 
+output: html_document 
+--- 
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE) 
+``` 
+
+```{r} 
+library(deSolve) 
+library(ggplot2) 
+library(tidyr)
+library(ggsci)
+``` 
+
+```{r} 
+GW_pond =function(t, y, parameters) { 
+  R=y[1]; L=y[2]; N=y[3]; JS=y[4]; JI=y[5]; AS=y[6]; AI=y[7]  
+
+  #R = resource 
+  #L = larvae 
+  #N = nauplii 
+  #JS = juvenile susceptibles 
+  #JI = juvenile infected 
+  #AS = adult susceptibles 
+  #AI = adult infected 
+
+   
+  with(as.list(parameters),{  
+    dRdt= r*R*(1-(R/k)) - ((fn*N+fj*(JS+JI)+fa*(AS+AI))*R)/(R+h)# Equation for Resources 
+    dLdt= -((ε*L)*(fn*N+fj*(JS+JI)+fa*(AS+AI))+dl*L)/(R+h)  # Equation for Larvae 
+    dNdt= 0.5 * (e*fa*R/R+h) * (AS+ρ*AI) - (dn+mnj)*N   # Equation for Nauplii 
+    dJSdt= mnj*N - dj*JS - (α*ε*L*fj*JS)/R+h - mja*JS  # Equation for Susceptible Juveniles 
+    dJIdt= (α*ε*L*fj*JS)/R+h - JI*(dj+vj+mja)  # Equation for Infected Juveniles 
+    dASdt= mja*JS - (α*ε*L*fa*AS)/R+h - da*AS  # Equation for Susceptible Adults 
+    dAIdt= mja*JI + (α*ε*L*fa*AS)/R+h - (da+va)*AI  # Equation for Infected Adults 
+
+    #State Variables 
+#dR/dt = resource growth (algae) - consumption 
+#dL/dt = larval input (from dog or human) - consumption - background death 
+#dN/dt = births - background nauplii deaths - maturation to juveniles 
+#dJs/dt = maturation from nauplii - background death - maturation (to susceptible adults) - infection 
+#dJi/dt = infection (from susceptible juveniles) - background death - maturation (to infected adults) 
+#dAs/dt = maturation (from susceptible adults) - background death - infection 
+#dAi/dt = maturation (from infected juveniles) - background death + infection (of susceptible adults) 
+
+    #Parameters 
+#r is maximal growth rate of algae 
+#k is carrying capacity of algae (~5-10 mg/L) 
+#h is the half saturation constant in the type 2 foraging model aka the resource density at which the consumer's consumption rate is 1/2 of the maximum rate. It is related to search speed and defines the shape/slope of the curve 
+#ε is relative capture rate of GW larvae by copepod 
+#fn feeding rate of nauplii 
+#fj feeding rate of juveniles 
+#fa feeding rate of adults 
+#dl background death rate of larvae  
+#e conversion efficiency (units of carbon, algae to copepod biomass), births dependent on consumption by adults
+#ρ reproductive rate of infected copepods vs. uninfected (1 if no difference) 
+#dn background nauplii deaths 
+#mnj maturation of nauplii to juveniles 
+#dj background juvenile deaths 
+#α probability of becoming infected per larvae ingested 
+#mja maturation of juveniles to adults 
+#vj virulent effect on mortality of juveniles 
+#da background adult deaths  
+#va virulent effect on mortality of adults 
+
+    result = c(dRdt,dLdt,dNdt,dJSdt,dJIdt,dASdt,dAIdt) 
+    return(list(result)) 
+  } 
+  )  
+}  
+``` 
+
+```{r} 
+Initial_conditions = c(R=1,L=1,N=1,JS=1,JI=1,AS=1,AI=1) 
+timespan = 50 
+parameters = c(r = 0.4 , k = 10 , h = 100 , ε = 0.75, fn =0.05 ,fj =0.317 , fa =0.1 , dl =2.5 , e = 0.33 , ρ  = 1 , dn = 0.233, mnj = 1.25, dj = 0.2, α = 0.001 , mja = 0.62 , vj =0 , da =0.2 , va = 0.80 ) #time in days
+
+GW_events = data.frame("var" = c("L","L","R"), "time" = c(10,20,30), "value" = c(1,0,0), "method" = c("add","add","add")) 
+
+# Run the simulation with the ode() function from deSolve and convert to a dataframe 
+
+simulation = data.frame(ode(y=Initial_conditions, times=0:timespan, parms = parameters, func=GW_pond, method="lsoda", events = list(data = GW_events))) 
+
+# Plot the results - the results of the graph are the relative population densities of each stage class 
+
+df <- simulation %>% pivot_longer(cols=c('R', 'L', 'N', 'JS', 'JI', 'AS', 'AI'),
+                    names_to= 'Variable',
+                    values_to='value')
+
+ggplot(df, aes(x = time, y = value, color = Variable)) +
+  geom_line() + ylab("Population Density") 
+
+#ggplot(data=simulation, aes(x=time)) + geom_line(aes(y=R), colour="red") + geom_line(aes(y=L), colour="blue") + geom_line(aes(y=N), colour="green") + geom_line(aes(y=JS), colour="orange") + geom_line(aes(y=JI), colour="purple") + geom_line(aes(y=AS), colour="black") + geom_line(aes(y=AI), colour="pink") + ylab("Density") 
+``` 
+```{r}
+#preliminary Model
+
+GW_prelimODE =function(t, y, parameters) { 
+  S=y[1]; I=y[2]; L1=y[3]; L3F=y[4]
+
+ with(as.list(parameters),{  
+    dSdt = bM*(1-(S+I)/k)*(S+I)-d-epsilon*sigma*S*L1-fP*S
+    dIdt = epsilon*sigma*S*L1-(d+v+fP)*I
+    dL1dt = I-epsilon*(S+I)*fP-dL1*L1
+    dL3Fdt = fP*I-dL3F*L3F
+ result = c(dSdt,dIdt,dL1dt,dL3Fdt) 
+    return(list(result)) 
+  } 
+  )  
+}  
+
+#https://resultfor.dev/520199-using-a-loop-in-an-ode-to-graphically-compare-different-parameters-r
+#run over a series of fP values 
+#simulation <- vector(length(fPvec),mode="list")
+
+Initial_conditions = c(S=100,I=0,L1=0,L3F=0)
+timespan = 20 #time in days
+parameters = c(bM=0.5,k=1000,d=0.025,epsilon=0.8,sigma=0.3,v=0.1,I=100,dL1=1,dL3F=0.01)
+#vary fP (rate of predation) and I (input of larvae)
+# Run the simulation with the ode() function from deSolve and convert to a dataframe
+
+for (i in 1:10){
+index <- (i/10)
+  simulation = data.frame(ode(y=Initial_conditions, times=0:timespan, parms = c(fP=index[i],parameters), func=GW_prelimODE, method="lsoda"))
+}
+
+# Plot the results - the results of the graph are the relative population densities of each stage class 
+
+df <- simulation %>% pivot_longer(cols=c('S', 'I', 'L1', 'L3F'),
+                    names_to= 'Variable',
+                    values_to='value')
+
+ggplot(df, aes(x = time, y = value, color = Variable)) +
+  geom_line(size=1) + ylab("Population Density") + theme_classic() + scale_color_jama()
+```
+
+```{r}
+#preliminary Model 10/20/22 - L3s in Fish 
+
+library(deSolve)
+
+GW_prelimODE =function(t, y, parameters) { 
+  S=y[1]; E=y[2]; I=y[3]; L1=y[4]; L3F=y[5]
+
+ with(as.list(parameters),{  
+   if(t>=3){epsilon = 0; dL1 = 0}
+    dSdt = bM*(1-(S+E+I)/k)*(S+E+I)-d*S-epsilon*sigma*S*L1-f*P*S
+    dEdt = epsilon*sigma*S*L1 - (d+l+f*P)*E
+    dIdt = l*E-(d+v+f*P)*I
+    dL1dt = i-epsilon*(S+E+I)*L1-dL1*L1
+    dL3Fdt = f*P*I-dL3F*L3F
+ result = c(dSdt,dEdt,dIdt,dL1dt,dL3Fdt) 
+    return(list(result)) 
+  } 
+  )  
+}  
+
+#https://resultfor.dev/520199-using-a-loop-in-an-ode-to-graphically-compare-different-parameters-r
+#run over a series of fP values 
+#simulation <- vector(length(fPvec),mode="list")
+parameters = c(bM=0.35,k=1000,d=0.025,epsilon=0.01,sigma=0.3,v=0.1,i=0,dL1=1,dL3F=0,l=1/15,f=4.2,P=0.07)
+S_star = max(1,with(as.list(parameters),k*(bM-(d+f*P))/bM)) #disease free equilibrium state 
+Initial_conditions = c(S=S_star,E=0,I=0,L1=100,L3F=0)
+timespan = 100 #time in days
+
+#constant input rate scenarios 
+#vary fP (rate of predation) and I (input of larvae)
+# Run the simulation with the ode() function from deSolve and convert to a dataframe
+
+modrun = data.frame(ode(y=Initial_conditions, times=0:timespan, parms = parameters, func=GW_prelimODE, method="lsoda",maxsteps=5e5))
+
+fish_vec = seq(from=0, to=1, by=0.01)
+L3s_in_fish = numeric()
+parameters = c(bM=0.35,k=1000,d=0.025,epsilon=0.01,sigma=0.3,v=0.1,i=0,dL1=1,dL3F=0,l=1/15,f=4.2,P=0.07)
+timespan = 100
+
+for(i in 1:length(fish_vec)){
+  parameters["P"] = fish_vec[i]
+  S_star = max(1,with(as.list(parameters),k*(bM-(d+f*P))/bM)) #disease free equilibrium state 
+  Initial_conditions = c(S=S_star,E=0,I=0,L1=100,L3F=0)
+  modrun = data.frame(ode(y=Initial_conditions, times=0:timespan, parms = parameters, func=GW_prelimODE, method="lsoda",maxsteps=5e5)) 
+  L3s_in_fish[i] = modrun[101,"L3F"]
+  }
+plot(fish_vec,L3s_in_fish, type="l")
+
+```
+
+
+```{r}
+data = as.data.frame(cbind(L3s_in_fish,fish_vec))
+plot1 = ggplot(data, aes(x=fish_vec, y=L3s_in_fish)) + geom_line() + xlab("Density of Fish/L") + ylab("L3s in Fish") + geom_vline(xintercept=0.077, linetype='dashed', color = "red") + geom_vline(xintercept=0.50, linetype='dashed', color = "blue") + geom_text(aes(x=0.097, label="Copepod population crashes", y=2), colour="black", angle=90) + geom_text(aes(x=0.52, label="Fish density from Box et al. 2021", y=2), colour="black", angle=90) + theme_classic()
+plot1
+```
+
+
+```{r}
+l = 1/15
+d = 1/40
+f = 4.2
+curve(l/(l+d+f*x), from = 0, 1)
+v = 0
+# Probability of a copepod going I --> L3F
+curve((f*x)/(d+v+f*x), from = 0, 1)
+
+# Prob(E-->L3F)
+curve(l/(l+d+f*x)*(f*x)/(d+v+f*x), from = 0, 1)
+l = 1/15
+d = 1/40
+f = 4.2
+v = 1/40
+
+# Probability of a copepod going from E --> I
+curve(l/(l+d+f*x), from = 0, 1)
+
+# Probability of a copepod going I --> L3F
+curve((f*x)/(d+v+f*x), from = 0, 1)
+
+# Prob(E-->L3F)
+curve(l/(l+d+f*x)*(f*x)/(d+v+f*x), from = 0, 1)
+l = 1/15
+d = 1/40
+f = 4.2
+v = 1/30
+
+# Probability of a copepod going from E --> I
+curve(l/(l+d+f*x), from = 0, 1)
+
+# Probability of a copepod going I --> L3F
+curve((f*x)/(d+v+f*x), from = 0, 1)
+
+# Prob(E-->L3F)
+curve(l/(l+d+f*x)*(f*x)/(d+v+f*x), from = 0, 1)
+```
+#8-9-23
+```{r}
+#State Variables
+#L1,N,Js,Je,Ji,As,Ae,Ai
+
+#parameters
+#a = attack rate of adults
+#h = handeling time
+#ρN = attach rate of nauplii relative to adults
+#ρJ = attach rate of juveniles relative to adults
+#f = feeding rate of adults
+#ɣN = feeding rate of nauplii relative to adults
+#ɣJ = feeding rate of juveniles relative to adults
+#dL1 = background death of L1s
+#bm = birth rate of adults (only susceptibles)
+#c = inverse of carrying capacity
+#αN = carrying capacity of nauplii relative to adults
+#αJ = carrying capacity of juveniles relative to adults
+#mN = maturation rate of nauplii
+#dN = background death rate of nauplii
+#mJ = maturation rate of juveniles
+#dJ = background death of juveniles
+#vJ = virulent effect on juveniles
+#dA = background death of adults 
+#vA = virulent effect on adults 
+#l = rate of infection maturation 
+
+Pred = (a*(ρN*N+ρJ*(Js+Je+Ji)+As+Ae+Ai))/a+h*(a*(ρN*N+ρJ*(Js+Je+Ji)+As+Ae+Ai))
+dL1dt = Input - f*(ɣN*N + ɣJ*(Js+Je+Ji) + As+Ae+Ai) - dL1*L1
+dNdt = bm*(A/2)*(eˆ-c*(αN*N+αJ*J*J+A)) - (mN+dN)*N + Pred #how to include stage classes in logistic growth equation? 
+dJsdt = (mN+dN)*N - (mJ+dJ)*Js - Pred -  f*ɣJ*Js
+dAsdt = mJ*Js - dA*As - Pred - f*As 
+dJedt = f*ɣJ*Js - (dJ+vJ)*Je - l*Je - Pred
+dAedt = f*As - (dA+vA)*Ae - l*Ae - Pred
+dJidt = l*Je - (dJ+vJ)Ji - Pred
+dAidt = l*Ae - (dA+vA)*Ai - Pred
+```
+
