@@ -19,7 +19,7 @@ parms["ɣ_N"] = 1/10 #feeding rate of nauplii relative to adults
 parms["ɣ_J"] = 1/2 #feeding rate of juveniles relative to adults
 parms["d_L1"] = 1 #background death of L1s
 parms["b_m"] = 25 #birth rate of adults (only susceptibles), eggs per female per day
-parms["c"] = 1/100 #inverse of carrying capacity
+parms["c"] = 1/100 #inverse of carrying capacity (strength of competition among copepods)
 parms["α_N"] = 1/10 #competitive effects of nauplii relative to adults
 parms["α_J"] = 1/2 #competitive effects of juveniles relative to adults
 parms["m_N"] = 1/5 #maturation rate of nauplii (1/days to next stage)
@@ -232,7 +232,7 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
 
 results_list <- list()
 plot_list <- list()
-n.sim = 15
+n.sim = 1
 
 for(i in 1:n.sim){
   #run simulation
@@ -244,6 +244,8 @@ for(i in 1:n.sim){
   #Plot prev infected adults
   plot1 <- ggplot(data=result$Ponds,aes(x=time,y=(Ai/(As+Ae+Ai)),group=as.factor(Pond),color=as.factor(Pond)))+geom_line()+theme(legend.position = "none")
   
+  print(range(result[["Ponds"]][["Ai"]]))
+  
   #Plot average worms per person over time 
   forplotting = matrix(unlist(lapply(result$Humans,FUN=colMeans)),ncol=148,nrow=1001,byrow = TRUE)
   wormsperperson = as.data.frame(cbind(forplotting[,148],forplotting[,147]))
@@ -251,13 +253,15 @@ for(i in 1:n.sim){
   
   # Add the plots to the list
   plot_list[[i]] <- plot_grid(plot1, plot2, ncol = 1)
+  
+  print(range(wormsperperson$V2)) 
 }
 
-plot_grid(plotlist = plot_list, ncol = 15)
+plot_grid(plotlist = plot_list, ncol = 5) #output is all simulation runs for all ponds 
 
 
 #output for all time steps
-result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
+result = GWABM(n.pond=5,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
 
 
 #plotting
@@ -267,9 +271,74 @@ forplotting = matrix(unlist(lapply(result$Humans,FUN=colMeans)),ncol=148,nrow=10
 
 plot(forplotting[,148],forplotting[,147],type="l") ##average worms per person over time
 
+#behavior space function - factorial simulator
+#section 543-577
+
+
+########
+#IN PROGRESS
+#L.per.day, more liters = more infection
+#higher competitive effects between copepods = less infection
+
+GWABM_factorial_simulator = function(PoI,mins,maxs,levels,iterations,pars=parms){
+  PoI_dataframe = data.frame(matrix(ncol=length(PoI),nrow=levels)) #create empty dataframe
+  colnames(PoI_dataframe) = PoI 
+  for(i in 1:length(PoI)){
+    PoI_dataframe[,i] = seq(mins[i],maxs[i],length.out=levels)
+  }
+  PoI_set = expand.grid(PoI_dataframe) #doing factorials 
+  #return(PoI_set)
+  
+  #run first parameter combination batch
+  pars[PoI] = as.numeric(PoI_set[1,]) #will only update the values of the POIs, not all other parameters 
+  result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=pars) #will only take local parameter values 
+  return(list(result,pars)) #unlist and relist
+}
+
+P_o_I = c("L.per.day","c") 
+mins_PoI = c(0.1,0.01)
+maxs_PoI = c(10, 0.1)
+n_levels_PoI = 5 #will run 5x5 simulations 
+
+facSimOutput = GWABM_factorial_simulator(P_o_I,mins_PoI,maxs_PoI,n_levels_PoI,iterations=5,pars=parms)
+
+str(facSimOutput)
+
+facSimOutput[[2]] #return pars for current simulation 
+
+
+
+PoI_vectors_L.per.day = seq(from=mins_PoI[1],to=maxs_PoI[1],length.out=n_levels_PoI)
+PoI_vectors_L.per.day = seq(from=mins_PoI[2],to=maxs_PoI[2],length.out=n_levels_PoI)
+
+expand.grid() #creates data frame that is a factorial cross of vectors 
+
+mapply() #run through data frame rows 
+
+#collect results 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #target should be 0.001 - 0.01, which would be 1 infection per 100-1000 people. (0.1 - 1 %)
-
-
 #Currently:
 #no predators
 #only one initial infection in dogs and humans
