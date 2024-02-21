@@ -36,16 +36,21 @@ parms["a"] = 0.01 #attack rate on adults by fish
 parms["h_n"] = 1/10 #handling time of nauplii
 parms["h_j"] = 1/2 #handling time of juveniles
 parms["h"] = 1/50 #handling time of adults
-parms["WL"] = 1 #water level 
+#parms["WL"] = 1 #water level 
 parms["e"] = 0 #conversion efficiency of copepod biomass into predator biomass
 parms["W_0"] = 0.05 #number of worms initially per mammal host 
 parms["k"] = 146 #number of steps in worm development (based on linear chain rule)
 parms["r"] = 0.4 #rate of moving from one worm step to next
-parms["n.pond"] = 10
+parms["n.pond"] = 5
 parms["L.per.day"] = 0.2 #liters drank per day 
 parms["sigma"] = 0.01 #probability of infection from exposure in mammals 
 parms["cop.sigma"] = 0.01 #prob copepod gets infected given it eats GW L1 
 
+
+#Water Level 
+monthly_seq = c(0,0,0,0,0,1,3,4,3,0,0,0)
+#water level vector 
+WL = rep(monthly_seq, c(31,28,31,30,31,30,31,31,30,31,30,31)) 
 
 #Pond ODE function
 GW_model = function(t,y,parameters){
@@ -179,8 +184,8 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
   for (t in timespan) {
     time_step_data <- data.frame()# Create an empty data frame for this time step
     last_step <- subset(results, time == t-1) #define last step of results
-    merged <- subset(last_step, Elevation <= parms[['WL']]) #define merged
-    parms[['WL']] = WaterLevel[t] #define water level at every given time step
+    merged <- subset(last_step, Elevation <= WL[(t %% 365) + 1]) #define merged
+    #parms[['WL']] = WaterLevel[t] #define water level at every given time step
     
     for(p in 1:dim(merged)[1]){
       last_step[p,2:10] <- apply(X=merged[,2:10],MARGIN = 2,FUN = weighted.mean, w = merged$Volume)
@@ -263,7 +268,6 @@ plot_grid(plotlist = plot_list, ncol = 5) #output is all simulation runs for all
 #output for all time steps
 result = GWABM(n.pond=5,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
 
-
 #plotting
 ggplot(data=result$Ponds,aes(x=time,y=(Ai/(As+Ae+Ai)),group=as.factor(Pond),color=as.factor(Pond)))+geom_line() #prevelance of infected adults, too high atm
 
@@ -291,7 +295,7 @@ GWABM_factorial_simulator = function(PoI,mins,maxs,levels,iterations,pars=parms)
   
   #run first parameter combination batch
   pars[PoI] = as.numeric(PoI_set[1,]) #will only update the values of the POIs, not all other parameters 
-  result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=pars) #will only take local parameter values 
+  result = GWABM(n.pond=5,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=pars) #will only take local parameter values 
   return(list(result,pars)) #unlist and relist
 }
 
@@ -305,6 +309,13 @@ facSimOutput = GWABM_factorial_simulator(P_o_I,mins_PoI,maxs_PoI,n_levels_PoI,it
 str(facSimOutput)
 
 facSimOutput[[2]] #return pars for current simulation 
+
+
+
+
+
+
+
 
 
 
