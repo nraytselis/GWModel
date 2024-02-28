@@ -36,16 +36,15 @@ parms["a"] = 0.01 #attack rate on adults by fish
 parms["h_n"] = 1/10 #handling time of nauplii
 parms["h_j"] = 1/2 #handling time of juveniles
 parms["h"] = 1/50 #handling time of adults
-#parms["WL"] = 1 #water level 
 parms["e"] = 0 #conversion efficiency of copepod biomass into predator biomass
-parms["W_0"] = 0.05 #number of worms initially per mammal host 
+parms["W_0"] = 0.02 #number of worms initially per mammal host 
 parms["k"] = 146 #number of steps in worm development (based on linear chain rule)
 parms["r"] = 0.4 #rate of moving from one worm step to next
 parms["n.pond"] = 5
-parms["L.per.day"] = 0.2 #liters drank per day 
-parms["sigma"] = 0.01 #probability of infection from exposure in mammals 
+parms["L.per.day"] = 0.02 #liters drank per day 
+parms["sigma"] = 0.1 #probability of infection from exposure in mammals 
 parms["cop.sigma"] = 0.01 #prob copepod gets infected given it eats GW L1 
-
+#parms["WL"] = 1 #water level
 
 #Water Level 
 monthly_seq = c(0,0,0,0,0,1,3,4,3,0,0,0)
@@ -122,7 +121,7 @@ Initialize_Hosts = function(N.human,N.dog,parameters=parms){
 
 #Mammal Infection 
 mammal_infection = function(n.pond, sigma, inf_copes, preferences, L.per.day){
-  sum(rpois(n=n.pond, lambda = sigma*pmax(inf_copes)*L.per.day*preferences)) #for one individual, total copepods they are infected by
+  sum(rpois(n=n.pond, lambda = sigma*pmax(inf_copes,0)*L.per.day*preferences)) #for one individual, total copepods they are infected by
 }
 
 #mammal_infection(n.pond = 10,sigma=0.1,inf_copes = 1:times=10,preferences = rep(0.1,times=10), L.per.day = 5)
@@ -170,7 +169,7 @@ Exposure = function(ponds,parameters,hosts){
 
 
 #Initial Landscape Conditions Function
-GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
+GWABM = function(n.pond,timespan,N.human,N.dog,parameters=parms){
   initials = initial_conditions(n.pond)
   results = initials
   hosts = Initialize_Hosts(N.human,N.dog,parameters)
@@ -178,7 +177,7 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
   Dogs = hosts["Dogs"]
   
 
-    if(length(WaterLevel)!=length(timespan))stop("length of timespan and water level needs to match.")
+    #if(length(WaterLevel)!=length(timespan))stop("length of timespan and water level needs to match.")
   
   #double forloop, runs through a list of ponds with different initial conditions
   for (t in timespan) {
@@ -194,7 +193,7 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
     for (i in 1:n.pond) {
       inits <- as.numeric(last_step[i,2:10])
       names(inits) <- colnames(last_step)[2:10]
-      result <- data.frame(ode(y = inits, times = (t-1):t, parms = parms, func = GW_model, method = "lsoda", rtol=1e-4, atol=1e-6))
+      result <- data.frame(ode(y = pmax(inits,0), times = (t-1):t, parms = parameters, func = GW_model, method = "lsoda", rtol=1e-4, atol=1e-6))
       
       # Extract the data for this pond at the current time step
       pond_data <- result[result$time == t, ]
@@ -214,8 +213,8 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
     }
     
     #Allow hosts to deposit worms in water bodies on day 1 of the model
-    New_L1s.H = Egg_Deposition(stats=Humans[[t]],n.pond=parms["n.pond"], pond_probs=rep(1/parms["n.pond"],times=parms["n.pond"])) #uniform probs for deposition for all ponds
-    New_L1s.D = Egg_Deposition(stats=Dogs[[t]],n.pond=parms["n.pond"], pond_probs=rep(1/parms["n.pond"],times=parms["n.pond"]))
+    New_L1s.H = Egg_Deposition(stats=Humans[[t]],n.pond=parameters["n.pond"], pond_probs=rep(1/parameters["n.pond"],times=parameters["n.pond"])) #uniform probs for deposition for all ponds
+    New_L1s.D = Egg_Deposition(stats=Dogs[[t]],n.pond=parameters["n.pond"], pond_probs=rep(1/parameters["n.pond"],times=parameters["n.pond"]))
     New_L1s = New_L1s.H + New_L1s.D
     time_step_data[,"L1"] = time_step_data[,"L1"] + New_L1s/time_step_data[,"Volume"]
     
@@ -223,16 +222,16 @@ GWABM = function(n.pond,timespan,WaterLevel,N.human,N.dog,parameters=parms){
     results = rbind(results,time_step_data)  
     
     #allow juvenile worms to develop from time t to time t+1 in mammals
-    Humans[[t + 1]] = Worm_development(Humans[[t]],parms)
-    Dogs[[t + 1]] = Worm_development(Dogs[[t]],parms)
+    Humans[[t + 1]] = Worm_development(Humans[[t]],parameters)
+    Dogs[[t + 1]] = Worm_development(Dogs[[t]],parameters)
     
     #allow mammal hosts to be exposed and add more J1s (first of 146 steps in host)
-    Humans[[t + 1]][,"J1"] = Humans[[t + 1]][,"J1"] + apply(X=hosts$Human.prefs,MARGIN = 1,FUN = mammal_infection,n.pond=parms["n.pond"],sigma=parms["sigma"],inf_copes=pond_data[,"Ai"]+pond_data[,"Ji"],L.per.day=parms["L.per.day"]) 
-    Dogs[[t + 1]][,"J1"] = Dogs[[t + 1]][,"J1"] + apply(X=hosts$Dog.prefs,MARGIN = 1,FUN = mammal_infection,n.pond=parms["n.pond"],sigma=parms["sigma"],inf_copes=pond_data[,"Ai"]+pond_data[,"Ji"],L.per.day=parms["L.per.day"])
+    Humans[[t + 1]][,"J1"] = Humans[[t + 1]][,"J1"] + apply(X=hosts$Human.prefs,MARGIN = 1,FUN = mammal_infection,n.pond=parameters["n.pond"],sigma=parameters["sigma"],inf_copes=pond_data[,"Ai"]+pond_data[,"Ji"],L.per.day=parameters["L.per.day"]) 
+    Dogs[[t + 1]][,"J1"] = Dogs[[t + 1]][,"J1"] + apply(X=hosts$Dog.prefs,MARGIN = 1,FUN = mammal_infection,n.pond=parameters["n.pond"],sigma=parameters["sigma"],inf_copes=pond_data[,"Ai"]+pond_data[,"Ji"],L.per.day=parameters["L.per.day"])
     
     }
   #results
-  list(Ponds=results,Humans=Humans,Dogs=Dogs)
+  list(Ponds=results,Humans=Humans,Dogs=Dogs,Parameters=parameters) 
 }
 
 results_list <- list()
@@ -241,7 +240,7 @@ n.sim = 1
 
 for(i in 1:n.sim){
   #run simulation
-  result = GWABM(n.pond=10,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
+  result = GWABM(n.pond=10,timespan=1:1000,N.human=50,N.dog=50,parameters=parms)
   
   # Store the result
   results_list[[i]] <- result
@@ -266,7 +265,7 @@ plot_grid(plotlist = plot_list, ncol = 5) #output is all simulation runs for all
 
 
 #output for all time steps
-result = GWABM(n.pond=5,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=parms)
+result = GWABM(n.pond=5,timespan=1:1000,N.human=50,N.dog=50,parameters=parms)
 
 #plotting
 ggplot(data=result$Ponds,aes(x=time,y=(Ai/(As+Ae+Ai)),group=as.factor(Pond),color=as.factor(Pond)))+geom_line() #prevelance of infected adults, too high atm
@@ -274,6 +273,11 @@ ggplot(data=result$Ponds,aes(x=time,y=(Ai/(As+Ae+Ai)),group=as.factor(Pond),colo
 forplotting = matrix(unlist(lapply(result$Humans,FUN=colMeans)),ncol=148,nrow=1001,byrow = TRUE) 
 
 plot(forplotting[,148],forplotting[,147],type="l") ##average worms per person over time
+
+
+
+
+
 
 #behavior space function - factorial simulator
 #section 543-577
@@ -283,10 +287,23 @@ plot(forplotting[,148],forplotting[,147],type="l") ##average worms per person ov
 #IN PROGRESS
 #L.per.day, more liters = more infection
 #higher competitive effects between copepods = less infection
+#PoI, parameters of interest
+
+#simulation summary function
+
+simulationsummary = function(sim1){
+  Human_worms = matrix(unlist(lapply(sim1$Humans, FUN=colMeans)), ncol=dim(sim1$Humans[[1]])[2], byrow=T)[, which(colnames(sim1$Humans[[1]]) == "Adults")]
+  Dog_worms = matrix(unlist(lapply(sim1$Dogs, FUN=colMeans)), ncol=dim(sim1$Dogs[[1]])[2], byrow=T)[, which(colnames(sim1$Dogs[[1]]) == "Adults")]
+  Ponds_summary = sim1$Ponds %>% group_by(time,Group) %>% summarise(infected=sum(Ji,Ai)) 
+  return(list(Humans=Human_worms,Dogs=Dog_worms,Ponds=Ponds_summary))
+}
+
+#simulationsummary(sim1)
 
 GWABM_factorial_simulator = function(PoI,mins,maxs,levels,iterations,pars=parms){
   PoI_dataframe = data.frame(matrix(ncol=length(PoI),nrow=levels)) #create empty dataframe
   colnames(PoI_dataframe) = PoI 
+  
   for(i in 1:length(PoI)){
     PoI_dataframe[,i] = seq(mins[i],maxs[i],length.out=levels)
   }
@@ -295,29 +312,69 @@ GWABM_factorial_simulator = function(PoI,mins,maxs,levels,iterations,pars=parms)
   
   #run first parameter combination batch
   pars[PoI] = as.numeric(PoI_set[1,]) #will only update the values of the POIs, not all other parameters 
-  result = GWABM(n.pond=5,timespan=1:1000,WaterLevel=rep(0,times=1000),N.human=50,N.dog=50,parameters=pars) #will only take local parameter values 
-  return(list(result,pars)) #unlist and relist
+  result = replicate(iterations,simulationsummary(GWABM(n.pond=5,timespan=1:1000,N.human=50,N.dog=50,parameters=pars)),simplify=FALSE) #will only take local parameter values 
+  
+  for(i in 2:length(PoI_set[,1])){
+    pars[PoI] = as.numeric(PoI_set[i,]) #will only update the values of the POIs, not all other parameters 
+    result2 = replicate(iterations,simulationsummary(GWABM(n.pond=5,timespan=1:1000,N.human=50,N.dog=50,parameters=pars)),simplify=FALSE) #will only take local parameter values 
+    result = (c(result,result2)) 
+  }
+  
+  return(result)   
 }
 
 P_o_I = c("L.per.day","c") 
 mins_PoI = c(0.1,0.01)
 maxs_PoI = c(10, 0.1)
-n_levels_PoI = 5 #will run 5x5 simulations 
+n_levels_PoI = 3 #will run 5x5 simulations 
 
-facSimOutput = GWABM_factorial_simulator(P_o_I,mins_PoI,maxs_PoI,n_levels_PoI,iterations=5,pars=parms)
+facSimOutput = GWABM_factorial_simulator(P_o_I,mins_PoI,maxs_PoI,n_levels_PoI,iterations=2,pars=parms)
+
+facSimOutput[[1]] #result from first iteration
+
+facSimOutput
+
+plot(1:1001,facSimOutput[[1]]$Humans,type="l")
+
+plot(1:1001,facSimOutput[[1]]$Dogs,type="l")
+
+plot(infected ~ time, data = facSimOutput[[1]]$Ponds) #plot in ggplot by group 
+
+#saveRDS(facSimOutput, file="/Users/nadiaraytselis/Test_Output.Rda")
+
+#test = readRDS("/Users/nadiaraytselis/Test_Output.Rda")
+
+#writing summary functions to apply to every model run
+# 
+# sim1 = test[[17]] #first iteration with first set of parameters
+# 
+# Human_worms = matrix(unlist(lapply(sim1$Humans, FUN=colMeans)), ncol=dim(sim1$Humans[[1]])[2], byrow=T)[, which(colnames(sim1$Humans[[1]]) == "Adults")]
+# 
+# Human_worms
+# 
+# Dog_worms = matrix(unlist(lapply(sim1$Dogs, FUN=colMeans)), ncol=dim(sim1$Dogs[[1]])[2], byrow=T)[, which(colnames(sim1$Dogs[[1]]) == "Adults")]
+# 
+# Dog_worms
+# 
+# head(sim1$Ponds)
+# 
+# Ponds_summary = sim1$Ponds %>% group_by(time,Group) %>% summarise(infected=sum(Ji,Ai)) 
+# 
+# Ponds_summary
+# 
+# tail(Ponds_summary)
+
+
+
+
+
+
 
 str(facSimOutput)
 
 facSimOutput[[2]] #return pars for current simulation 
 
-
-
-
-
-
-
-
-
+#facSimOutput[[2]] output of GWABM
 
 PoI_vectors_L.per.day = seq(from=mins_PoI[1],to=maxs_PoI[1],length.out=n_levels_PoI)
 PoI_vectors_L.per.day = seq(from=mins_PoI[2],to=maxs_PoI[2],length.out=n_levels_PoI)
