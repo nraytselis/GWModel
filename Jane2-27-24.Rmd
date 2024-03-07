@@ -1,0 +1,79 @@
+---
+title: "JaneGWEconModel"
+output: html_document
+date: "2024-02-27"
+---
+
+```{r}
+library(deSolve) 
+library(ggplot2) 
+library(tidyr)
+library(ggsci)
+library(wesanderson)
+library(scales)
+library(dplyr)
+library(readr)
+library(mgcv)
+library(tidyverse)
+library(stats)
+library(itsadug)
+library(data.table)
+library(car)
+library(broom)
+```
+
+Need deSolve package to solve ODE.
+
+First, we will define our parameter values, find values from the literature. 
+
+```{r}
+parms <- numeric() #parms needs to be a vector for other functions
+parms["B"] = 0.01 #rate of infection from environment
+parms["ɣ"] = 0.01#rate of recovery
+parms["w"] = 0.01#number of larvae released by adult worm
+parms["dL"] = 0.01#background death rate of larvae
+parms["e"] = #fraction uncontained 
+parms["p"] = #relative economic productivity of an infected individual not in containment
+parms["d"] = #depreciation of capital
+parms["c"] = #cost of intervention 
+parms["l"] = #rate that you move through the latent period (1 year)
+```
+
+We are running an ODE with 3 compartments/state variables. S is susceptibles, I is infected, and E is the environmental reservoir. We will later add a K compartment, while with represent captial. 
+
+```{r}
+GWeconModel =function(t, y, parameters){
+ S=y[1]; E=y[2]; I=y[3]; W=y[4]; K=y[5]
+ 
+ with(as.list(parameters),{
+ dSdt = ɣ*I - B*S*W  
+ dEdt = B*S*W - l*E
+ dIdt = l*E - ɣ*I 
+ dWdt = w*ɣ*(1-e)*I - dL*W
+ dKdt = a(S+E+(1-e)*p*I)*k - d*k - c*e
+ 
+ result = c(dSdt,dEdt,dIdt,dWdt,dKdt)
+    return(list(result)) 
+  } 
+  )  
+}  
+```
+
+Run ODE Simulation for Model
+```{r}
+Initial_conditions = c(S=10,I=10,E=10) 
+timespan = 50 
+parameters = c(Be=0.01,ɣ=0.01,W=0.01,dL=0.01)
+
+simulation = data.frame(ode(y=Initial_conditions, times=0:timespan, parms = parameters, func=GWeconModel, method="lsoda")) 
+
+
+df <- simulation %>% pivot_longer(cols=c('S','I','E'),
+                    names_to= 'Variable',
+                    values_to='value')
+
+ggplot(df, aes(x = time, y = value, color = Variable)) +
+  geom_line() + ylab("Population Density") 
+
+```
+
